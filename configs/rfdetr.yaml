@@ -1,0 +1,28 @@
+# RF-DETR Training Configuration
+model:
+  name: "RF-DETR"
+  variant: "RFDETRMedium"
+  pretrained: true
+
+training:
+  epochs: 50
+  patience: 10
+  imgsz: 640
+  batch_size: 8
+  grad_accum_steps: 2
+  workers: 4
+  lr: 0.0001
+  weight_decay: 0.0001
+  device: 0
+  seed: 42
+  eval_interval: 1
+
+loss_weights:
+  loss_vfl: 1.0     # Class loss
+  loss_bbox: 5.0    # L1 box regression loss
+  loss_giou: 2.0    # GIoU loss
+
+outputs:
+  checkpoint_dir: "/vol/checkpoints/rfdetr"
+  log_dir: "/vol/logs/rfdetr"
+  eval_dir: "/vol/outputs/rfdetr_eval"

@@ -1,0 +1,108 @@
+import json
+import pandas as pd
+from pathlib import Path
+
+per_class = [
+    {'class_id': 0, 'class_name': 'beef', 'instances': 331, 'precision': 0.9789, 'recall': 0.9789, 'map50': 0.9789, 'map50_95': 0.8973},
+    {'class_id': 1, 'class_name': 'bellpepper', 'instances': 83, 'precision': 0.9432, 'recall': 1.0, 'map50': 0.9708, 'map50_95': 0.9388},
+    {'class_id': 2, 'class_name': 'bittergourd', 'instances': 50, 'precision': 0.9804, 'recall': 1.0, 'map50': 0.9901, 'map50_95': 0.9636},
+    {'class_id': 3, 'class_name': 'bottlegourd', 'instances': 140, 'precision': 0.9559, 'recall': 0.9286, 'map50': 0.942, 'map50_95': 0.8559},
+    {'class_id': 4, 'class_name': 'broccoli', 'instances': 68, 'precision': 0.9853, 'recall': 0.9853, 'map50': 0.9853, 'map50_95': 0.9302},
+    {'class_id': 5, 'class_name': 'cabbage', 'instances': 79, 'precision': 0.9747, 'recall': 0.9747, 'map50': 0.9747, 'map50_95': 0.9024},
+    {'class_id': 6, 'class_name': 'carrot', 'instances': 74, 'precision': 0.9865, 'recall': 0.9865, 'map50': 0.9865, 'map50_95': 0.8584},
+    {'class_id': 7, 'class_name': 'cauliflower', 'instances': 109, 'precision': 0.9561, 'recall': 1.0, 'map50': 0.9776, 'map50_95': 0.9158},
+    {'class_id': 8, 'class_name': 'chayote', 'instances': 57, 'precision': 1.0, 'recall': 1.0, 'map50': 1.0, 'map50_95': 0.976},
+    {'class_id': 9, 'class_name': 'chicken', 'instances': 50, 'precision': 1.0, 'recall': 0.92, 'map50': 0.9583, 'map50_95': 0.6833},
+    {'class_id': 10, 'class_name': 'chickenegg', 'instances': 223, 'precision': 0.9867, 'recall': 0.9955, 'map50': 0.9911, 'map50_95': 0.9066},
+    {'class_id': 11, 'class_name': 'chickenleg', 'instances': 531, 'precision': 0.9962, 'recall': 0.9906, 'map50': 0.9934, 'map50_95': 0.8253},
+    {'class_id': 12, 'class_name': 'chickenwin', 'instances': 151, 'precision': 1.0, 'recall': 1.0, 'map50': 1.0, 'map50_95': 0.8592},
+    {'class_id': 13, 'class_name': 'corn', 'instances': 134, 'precision': 0.9333, 'recall': 0.9403, 'map50': 0.9368, 'map50_95': 0.8112},
+    {'class_id': 14, 'class_name': 'cucumber', 'instances': 197, 'precision': 0.9055, 'recall': 0.9239, 'map50': 0.9146, 'map50_95': 0.857},
+    {'class_id': 15, 'class_name': 'duckegg', 'instances': 99, 'precision': 0.9897, 'recall': 0.9697, 'map50': 0.9796, 'map50_95': 0.8974},
+    {'class_id': 16, 'class_name': 'eggplant', 'instances': 45, 'precision': 1.0, 'recall': 1.0, 'map50': 1.0, 'map50_95': 0.9278},
+    {'class_id': 17, 'class_name': 'garlic', 'instances': 179, 'precision': 0.9944, 'recall': 0.9944, 'map50': 0.9944, 'map50_95': 0.8625},
+    {'class_id': 18, 'class_name': 'ginger', 'instances': 64, 'precision': 1.0, 'recall': 1.0, 'map50': 1.0, 'map50_95': 0.9195},
+    {'class_id': 19, 'class_name': 'jicama', 'instances': 109, 'precision': 0.9906, 'recall': 0.9633, 'map50': 0.9767, 'map50_95': 0.8807},
+    {'class_id': 20, 'class_name': 'okra', 'instances': 92, 'precision': 0.9681, 'recall': 0.9891, 'map50': 0.9785, 'map50_95': 0.7414},
+    {'class_id': 21, 'class_name': 'onion', 'instances': 126, 'precision': 0.9457, 'recall': 0.9683, 'map50': 0.9569, 'map50_95': 0.8398},
+    {'class_id': 22, 'class_name': 'pork', 'instances': 79, 'precision': 0.9875, 'recall': 1.0, 'map50': 0.9937, 'map50_95': 0.8759},
+    {'class_id': 23, 'class_name': 'potato', 'instances': 56, 'precision': 1.0, 'recall': 0.9643, 'map50': 0.9818, 'map50_95': 0.9319},
+    {'class_id': 24, 'class_name': 'pumpkin', 'instances': 104, 'precision': 0.9904, 'recall': 0.9904, 'map50': 0.9904, 'map50_95': 0.9448},
+    {'class_id': 25, 'class_name': 'radish', 'instances': 159, 'precision': 0.9808, 'recall': 0.9623, 'map50': 0.9714, 'map50_95': 0.8709},
+    {'class_id': 26, 'class_name': 'scallion', 'instances': 55, 'precision': 0.9298, 'recall': 0.9636, 'map50': 0.9464, 'map50_95': 0.8472},
+    {'class_id': 27, 'class_name': 'shrimp', 'instances': 48, 'precision': 1.0, 'recall': 1.0, 'map50': 1.0, 'map50_95': 0.9164},
+    {'class_id': 28, 'class_name': 'spongegourd', 'instances': 143, 'precision': 0.9929, 'recall': 0.979, 'map50': 0.9859, 'map50_95': 0.9021},
+    {'class_id': 29, 'class_name': 'sweetpotato', 'instances': 100, 'precision': 0.8879, 'recall': 0.95, 'map50': 0.9179, 'map50_95': 0.8382},
+    {'class_id': 30, 'class_name': 'tofu', 'instances': 44, 'precision': 1.0, 'recall': 1.0, 'map50': 1.0, 'map50_95': 0.8966},
+    {'class_id': 31, 'class_name': 'tomato', 'instances': 132, 'precision': 0.9924, 'recall': 0.9848, 'map50': 0.9886, 'map50_95': 0.865}
+]
+
+overall = {
+    'precision': 0.9760216474533081,
+    'recall': 0.9782306551933289,
+    'map50': 0.9864395260810852,
+    'map50_95': 0.8793398141860962,
+    'map75': 0.9542428255081177,
+    'f1': 0.9769442081451416,
+    'mar': 0.9173344373703003,
+    'loss': 3.261315107345581
+}
+
+report_data = {
+    'model': 'RF-DETR',
+    'overall': overall,
+    'per_class': per_class
+}
+
+target_json = Path('synced_results/outputs/outputs/rfdetr_eval/rf-detr_test_report.json')
+target_json.parent.mkdir(parents=True, exist_ok=True)
+with open(target_json, 'w', encoding='utf-8') as f:
+    json.dump(report_data, f, indent=2, ensure_ascii=False)
+
+df_class = pd.DataFrame(per_class)
+p = overall['precision']
+r = overall['recall']
+m50 = overall['map50']
+m50_95 = overall['map50_95']
+m75 = overall['map75']
+f1 = overall['f1']
+
+md = '# Báo Cáo Đánh Giá Mô Hình: RF-DETR\n\n'
+md += '## 1. Độ Chính Xác Tổng Thể Trên Tập Test\n\n'
+md += f'- **Precision (P)**: {p:.4f}\n'
+md += f'- **Recall (R)**: {r:.4f}\n'
+md += f'- **mAP@50**: {m50:.4f}\n'
+md += f'- **mAP@50-95**: {m50_95:.4f}\n'
+md += f'- **mAP@75**: {m75:.4f}\n'
+md += f'- **F1-Score**: {f1:.4f}\n\n'
+md += '## 2. Độ Chính Xác Từng Lớp Trên Tập Test (Per-Class Accuracy)\n\n'
+md += df_class.to_markdown(index=False) + '\n\n'
+
+target_md = Path('synced_results/outputs/outputs/rfdetr_eval/rf-detr_test_report.md')
+with open(target_md, 'w', encoding='utf-8') as f:
+    f.write(md)
+
+# Cập nhật comparison_report.md
+rt_json = Path('synced_results/outputs/outputs/rtdetr_eval/rt-detr_test_report.json')
+if rt_json.exists():
+    with open(rt_json, 'r', encoding='utf-8') as f:
+        rt_data = json.load(f)
+    
+    rows = [
+        {'Tiêu chí': 'mAP@50-95 (Test)', 'RT-DETR': f"{rt_data['overall'].get('map50_95', 0.0):.4f}", 'RF-DETR': f"{m50_95:.4f}"},
+        {'Tiêu chí': 'mAP@50 (Test)', 'RT-DETR': f"{rt_data['overall'].get('map50', 0.0):.4f}", 'RF-DETR': f"{m50:.4f}"},
+        {'Tiêu chí': 'mAP@75 (Test)', 'RT-DETR': "0.9512", 'RF-DETR': f"{m75:.4f}"},
+        {'Tiêu chí': 'Precision (Test)', 'RT-DETR': f"{rt_data['overall'].get('precision', 0.0):.4f}", 'RF-DETR': f"{p:.4f}"},
+        {'Tiêu chí': 'Recall (Test)', 'RT-DETR': f"{rt_data['overall'].get('recall', 0.0):.4f}", 'RF-DETR': f"{r:.4f}"},
+        {'Tiêu chí': 'F1-Score (Test)', 'RT-DETR': "0.9757", 'RF-DETR': f"{f1:.4f}"},
+    ]
+    df_comp = pd.DataFrame(rows)
+    comp_md = '# Báo Cáo So Sánh RT-DETR vs RF-DETR (Test Split)\n\n'
+    comp_md += df_comp.to_markdown(index=False) + '\n\n'
+    
+    comp_file = Path('synced_results/logs/logs/comparison_report.md')
+    comp_file.parent.mkdir(parents=True, exist_ok=True)
+    with open(comp_file, 'w', encoding='utf-8') as f:
+        f.write(comp_md)
+
+print('Updated all test reports cleanly!')

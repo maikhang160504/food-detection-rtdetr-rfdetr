@@ -1,0 +1,31 @@
+# RT-DETR Training Configuration
+model:
+  name: "RT-DETR"
+  variant: "rtdetr-l.pt"
+  pretrained: true
+
+training:
+  epochs: 50
+  patience: 10
+  imgsz: 640
+  batch_size: 16
+  workers: 4
+  optimizer: "AdamW"
+  lr0: 0.0001
+  lrf: 0.01
+  weight_decay: 0.0001
+  device: 0
+  seed: 42
+  save: true
+  save_period: 1
+  val: true
+
+loss_weights:
+  box: 7.5
+  cls: 0.5
+  dfl: 1.5
+
+outputs:
+  checkpoint_dir: "/vol/checkpoints/rtdetr"
+  log_dir: "/vol/logs/rtdetr"
+  eval_dir: "/vol/outputs/rtdetr_eval"

@@ -1,0 +1,16 @@
+# Dataset Configuration
+dataset:
+  name: "food_ingredients"
+  roboflow:
+    workspace: "nckhcict2025"
+    project: "completed-project"
+    version: 5
+    url: "https://app.roboflow.com/nckhcict2025/completed-project/5"
+  paths:
+    volume_root: "/vol"
+    yolo_dir: "/vol/datasets/completed-project-5/yolo"
+    coco_dir: "/vol/datasets/completed-project-5/coco"
+  splits:
+    train: "train"
+    val: "valid"
+    test: "test"

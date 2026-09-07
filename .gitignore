@@ -1,0 +1,32 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Model weights and checkpoints (Stored on Modal Cloud Volume)
+*.pt
+*.pth
+*.ckpt
+*.bin
+*.onnx
+*.engine
+**/checkpoints/
+synced_results_v1/
+
+# TensorBoard event files
+*.tfevents*
+
+# Environments, credentials and secrets
+.env
+*.env
+.venv/
+venv/
+env/
+.modal/
+
+# OS & IDE metadata
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

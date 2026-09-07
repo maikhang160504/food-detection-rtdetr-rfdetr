@@ -1,0 +1,267 @@
+{
+  "model": "RT-DETR",
+  "overall": {
+    "precision": 0.9756416319348713,
+    "recall": 0.9759494345056157,
+    "map50": 0.9855552802373124,
+    "map50_95": 0.8844531948205127
+  },
+  "per_class": [
+    {
+      "Class ID": 0,
+      "Class Name": "beef",
+      "Precision": 0.9822,
+      "Recall": 0.9849,
+      "mAP@50": 0.9877,
+      "mAP@50-95": 0.9148
+    },
+    {
+      "Class ID": 1,
+      "Class Name": "bellpepper",
+      "Precision": 0.9731,
+      "Recall": 0.9639,
+      "mAP@50": 0.9916,
+      "mAP@50-95": 0.9385
+    },
+    {
+      "Class ID": 2,
+      "Class Name": "bittergourd",
+      "Precision": 0.9965,
+      "Recall": 1.0,
+      "mAP@50": 0.995,
+      "mAP@50-95": 0.973
+    },
+    {
+      "Class ID": 3,
+      "Class Name": "bottlegourd",
+      "Precision": 0.9628,
+      "Recall": 0.9246,
+      "mAP@50": 0.9765,
+      "mAP@50-95": 0.8704
+    },
+    {
+      "Class ID": 4,
+      "Class Name": "broccoli",
+      "Precision": 0.9708,
+      "Recall": 0.9706,
+      "mAP@50": 0.9875,
+      "mAP@50-95": 0.9464
+    },
+    {
+      "Class ID": 5,
+      "Class Name": "cabbage",
+      "Precision": 0.9923,
+      "Recall": 0.9367,
+      "mAP@50": 0.9821,
+      "mAP@50-95": 0.8974
+    },
+    {
+      "Class ID": 6,
+      "Class Name": "carrot",
+      "Precision": 0.9652,
+      "Recall": 0.9865,
+      "mAP@50": 0.9849,
+      "mAP@50-95": 0.865
+    },
+    {
+      "Class ID": 7,
+      "Class Name": "cauliflower",
+      "Precision": 0.9544,
+      "Recall": 1.0,
+      "mAP@50": 0.9866,
+      "mAP@50-95": 0.9196
+    },
+    {
+      "Class ID": 8,
+      "Class Name": "chayote",
+      "Precision": 0.9962,
+      "Recall": 1.0,
+      "mAP@50": 0.995,
+      "mAP@50-95": 0.9729
+    },
+    {
+      "Class ID": 9,
+      "Class Name": "chicken",
+      "Precision": 0.9577,
+      "Recall": 0.96,
+      "mAP@50": 0.9738,
+      "mAP@50-95": 0.678
+    },
+    {
+      "Class ID": 10,
+      "Class Name": "chickenegg",
+      "Precision": 0.9853,
+      "Recall": 0.9955,
+      "mAP@50": 0.9922,
+      "mAP@50-95": 0.9068
+    },
+    {
+      "Class ID": 11,
+      "Class Name": "chickenleg",
+      "Precision": 0.9898,
+      "Recall": 0.9774,
+      "mAP@50": 0.9917,
+      "mAP@50-95": 0.8392
+    },
+    {
+      "Class ID": 12,
+      "Class Name": "chickenwin",
+      "Precision": 0.9986,
+      "Recall": 1.0,
+      "mAP@50": 0.995,
+      "mAP@50-95": 0.8803
+    },
+    {
+      "Class ID": 13,
+      "Class Name": "corn",
+      "Precision": 0.9538,
+      "Recall": 0.9247,
+      "mAP@50": 0.9564,
+      "mAP@50-95": 0.8147
+    },
+    {
+      "Class ID": 14,
+      "Class Name": "cucumber",
+      "Precision": 0.9104,
+      "Recall": 0.9287,
+      "mAP@50": 0.9496,
+      "mAP@50-95": 0.8555
+    },
+    {
+      "Class ID": 15,
+      "Class Name": "duckegg",
+      "Precision": 0.9795,
+      "Recall": 0.9649,
+      "mAP@50": 0.9819,
+      "mAP@50-95": 0.9255
+    },
+    {
+      "Class ID": 16,
+      "Class Name": "eggplant",
+      "Precision": 0.9964,
+      "Recall": 1.0,
+      "mAP@50": 0.995,
+      "mAP@50-95": 0.9356
+    },
+    {
+      "Class ID": 17,
+      "Class Name": "garlic",
+      "Precision": 0.9775,
+      "Recall": 0.9888,
+      "mAP@50": 0.9942,
+      "mAP@50-95": 0.8667
+    },
+    {
+      "Class ID": 18,
+      "Class Name": "ginger",
+      "Precision": 0.9992,
+      "Recall": 1.0,
+      "mAP@50": 0.995,
+      "mAP@50-95": 0.917
+    },
+    {
+      "Class ID": 19,
+      "Class Name": "jicama",
+      "Precision": 0.9901,
+      "Recall": 0.922,
+      "mAP@50": 0.979,
+      "mAP@50-95": 0.8797
+    },
+    {
+      "Class ID": 20,
+      "Class Name": "okra",
+      "Precision": 0.9682,
+      "Recall": 0.9916,
+      "mAP@50": 0.9867,
+      "mAP@50-95": 0.7427
+    },
+    {
+      "Class ID": 21,
+      "Class Name": "onion",
+      "Precision": 0.9456,
+      "Recall": 0.9658,
+      "mAP@50": 0.9685,
+      "mAP@50-95": 0.8329
+    },
+    {
+      "Class ID": 22,
+      "Class Name": "pork",
+      "Precision": 0.9978,
+      "Recall": 1.0,
+      "mAP@50": 0.995,
+      "mAP@50-95": 0.8847
+    },
+    {
+      "Class ID": 23,
+      "Class Name": "potato",
+      "Precision": 0.9976,
+      "Recall": 1.0,
+      "mAP@50": 0.995,
+      "mAP@50-95": 0.9324
+    },
+    {
+      "Class ID": 24,
+      "Class Name": "pumpkin",
+      "Precision": 0.9875,
+      "Recall": 0.9904,
+      "mAP@50": 0.9948,
+      "mAP@50-95": 0.9384
+    },
+    {
+      "Class ID": 25,
+      "Class Name": "radish",
+      "Precision": 0.9687,
+      "Recall": 0.9739,
+      "mAP@50": 0.9934,
+      "mAP@50-95": 0.8819
+    },
+    {
+      "Class ID": 26,
+      "Class Name": "scallion",
+      "Precision": 0.9778,
+      "Recall": 0.9636,
+      "mAP@50": 0.9891,
+      "mAP@50-95": 0.8413
+    },
+    {
+      "Class ID": 27,
+      "Class Name": "shrimp",
+      "Precision": 0.9764,
+      "Recall": 1.0,
+      "mAP@50": 0.9905,
+      "mAP@50-95": 0.9061
+    },
+    {
+      "Class ID": 28,
+      "Class Name": "spongegourd",
+      "Precision": 0.9917,
+      "Recall": 0.986,
+      "mAP@50": 0.9942,
+      "mAP@50-95": 0.9079
+    },
+    {
+      "Class ID": 29,
+      "Class Name": "sweetpotato",
+      "Precision": 0.9005,
+      "Recall": 0.93,
+      "mAP@50": 0.9506,
+      "mAP@50-95": 0.8449
+    },
+    {
+      "Class ID": 30,
+      "Class Name": "tofu",
+      "Precision": 0.9967,
+      "Recall": 1.0,
+      "mAP@50": 0.995,
+      "mAP@50-95": 0.9228
+    },
+    {
+      "Class ID": 31,
+      "Class Name": "tomato",
+      "Precision": 0.98,
+      "Recall": 1.0,
+      "mAP@50": 0.9942,
+      "mAP@50-95": 0.8695
+    }
+  ]
+}

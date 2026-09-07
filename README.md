@@ -1,33 +1,68 @@
 # Huấn Luyện & Đánh Giá RT-DETR và RF-DETR Trên Modal GPU
 
-Dự án nghiên cứu khoa học: Huấn luyện và đánh giá hai kiến trúc mô hình Object Detection dựa trên Transformer (**RT-DETR** và **RF-DETR**) trên tập dữ liệu thực phẩm Roboflow sử dụng hạ tầng điện toán đám mây **Modal GPU**.
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-ee4c2c.svg)](https://pytorch.org/)
+[![Modal](https://img.shields.io/badge/Cloud-Modal%20GPU%20(A100)-green.svg)](https://modal.com/)
+[![Roboflow](https://img.shields.io/badge/Dataset-Roboflow%20v5-purple.svg)](https://app.roboflow.com/nckhcict2025/completed-project/5)
+[![Checkpoints](https://img.shields.io/badge/Google%20Drive-Model%20Weights%20v5-4285F4.svg?logo=googledrive&logoColor=white)](https://drive.google.com/drive/folders/18o5EigDe8EyL2dcgpFc1YnOiUw9qhs9f?usp=drive_link)
+
+Dự án nghiên cứu khoa học: Huấn luyện, tối ưu và đánh giá đối đầu hai kiến trúc mô hình Object Detection dựa trên Transformer tiên tiến (**RT-DETR** và **RF-DETR**) trên tập dữ liệu 32 lớp món ăn & nguyên liệu thực phẩm Việt Nam sử dụng hạ tầng điện toán đám mây **Modal GPU (NVIDIA A100)**.
 
 ---
 
-## 1. Yêu Cầu Kỹ Thuật (Từ `request.md`)
+## 1. Tải Trọng Số Đã Huấn Luyện (Model Checkpoints v5)
 
-- **Dataset**: `https://app.roboflow.com/nckhcict2025/completed-project/5`
-- **Số Epochs**: **50 Epochs**.
-- **Loss Tracking từng Epoch**:
-  - `Epoch`
-  - `Train loss`
-  - `Class loss`
-  - `Box loss`
-  - `GIoU`
-  - `Learning rate`
-  - `Thời gian chạy thực tế (giây)`
-- **Checkpoints**:
-  - `best.pt` / `best.pth`: Lưu trọng số tốt nhất theo chỉ số `mAP@50-95` trên tập Validation.
-  - `last.pt` / `last.pth`: Lưu trọng số epoch cuối (epoch 50).
-- **Đánh Giá & Báo Cáo**:
-  - Precision, Recall, mAP50, mAP50-95.
-  - Độ chính xác từng lớp (Per-class) trên tập Test.
-  - Độ chính xác tổng thể.
-  - Bảng so sánh giữa RT-DETR và RF-DETR.
+Toàn bộ tệp trọng số (checkpoints) tốt nhất và đầy đủ của cả hai mô hình trên phiên bản dữ liệu **v5** đã được lưu trữ trên Google Drive:
+
+🔗 **[Tải Trọn Bộ Checkpoints v5 Trên Google Drive](https://drive.google.com/drive/folders/18o5EigDe8EyL2dcgpFc1YnOiUw9qhs9f?usp=drive_link)**
+
+### Danh Sách Chi Tiết Tệp Trọng Số:
+
+| Mô hình | Tệp Checkpoint | Dung lượng | Mô tả & Chỉ số đạt được (Test Split v5) |
+| :--- | :--- | :---: | :--- |
+| **RT-DETR** | `rtdetr/best.pt` | **63.3 MB** | 🏆 **Trọng số tốt nhất** (mAP@50: **98.56%**, mAP@50-95: **88.45%**) |
+| **RT-DETR** | `rtdetr/last.pt` | 63.3 MB | Trọng số epoch 50 cuối cùng |
+| **RF-DETR** | `rfdetr/best.pth` | **128.0 MB** | 🏆 **Trọng số EMA tốt nhất** (mAP@50: **98.64%**, mAP@50-95: **87.93%**) |
+| **RF-DETR** | `rfdetr/last.pth` | 511.8 MB | Trọng số checkpoint đầy đủ epoch 35 |
+| **RF-DETR** | `rfdetr/last_ema.pth` | 128.0 MB | Trọng số EMA epoch 35 |
+| **RF-DETR** | `rfdetr/checkpoint_*.ckpt` | ~511 MB / file | Checkpoint trung gian (epoch 9, 19, 29) phục vụ resume training |
+
+> **Hướng dẫn sử dụng sau khi tải**:
+> Sau khi tải thư mục từ Google Drive về, bạn đặt vào đường dẫn dự án theo cấu trúc:
+> ```text
+> synced_results/checkpoints/checkpoints/
+> ├── rtdetr/
+> │   ├── best.pt
+> │   └── last.pt
+> └── rfdetr/
+>     ├── best.pth
+>     └── last.pth
+> ```
 
 ---
 
-## 2. Cấu Trúc Thư Mục
+## 2. Bảng Tổng Hợp Kết Quả Đối Đầu (Benchmark v5)
+
+Đo lường trên tập kiểm thử độc lập **Test Split v5** (1,481 ảnh, 3,911 instances trên 32 lớp thực phẩm):
+
+| Tiêu Chí So Sánh (Evaluation Metric) | RT-DETR (Ultralytics) | RF-DETR (Medium) | Chênh Lệch | Ưu Thế |
+| :--- | :---: | :---: | :---: | :---: |
+| **Precision (Độ chính xác)** | 97.56% | **97.60%** | +0.04% | 🏆 RF-DETR |
+| **Recall (Độ nhạy / Thu hồi)** | 97.59% | **97.82%** | +0.23% | 🏆 RF-DETR |
+| **F1-Score** | 97.57% | **97.69%** | +0.12% | 🏆 RF-DETR |
+| **mAP@50 (IoU = 0.50)** | 98.56% | **98.64%** | +0.08% | 🏆 RF-DETR |
+| **mAP@50-95 (COCO Standard)** | **88.45%** | 87.93% | +0.52% | 🏆 RT-DETR |
+| **mAP@75 (IoU = 0.75)** | 95.12% | **95.42%** | +0.30% | 🏆 RF-DETR |
+| **Tốc độ suy luận (Inference Latency)** | **5.4 ms / ảnh (~185 FPS)** | ~12.5 ms / ảnh (~80 FPS) | Nhanh hơn 2.3x | 🏆 RT-DETR |
+| **Kích thước mô hình (Model Size)** | **63.4 MB** | 134.2 MB | Nhẹ hơn 2.1x | 🏆 RT-DETR |
+
+* Báo cáo so sánh đối đầu chi tiết: [reports_v5/COMPARISON_REPORT.md](reports_v5/COMPARISON_REPORT.md)
+* Báo cáo huấn luyện RT-DETR: [reports_v5/RTDETR_TRAINING_REPORT.md](reports_v5/RTDETR_TRAINING_REPORT.md)
+* Báo cáo huấn luyện RF-DETR: [reports_v5/RFDETR_TRAINING_REPORT.md](reports_v5/RFDETR_TRAINING_REPORT.md)
+
+---
+
+## 3. Cấu Trúc Dự Án
 
 ```text
 Train_models/
@@ -49,17 +84,23 @@ Train_models/
 │       ├── train.py             # Script train RF-DETR
 │       └── evaluate.py          # Script đánh giá RF-DETR trên Test set
 ├── modal_app/
+│   ├── app.py                  # Cấu hình Modal App & Image dependencies
 │   └── pipeline.py             # Điều phối chạy toàn bộ pipeline
-├── requirements.txt            # Danh sách thư viện
-├── request.md                  # Yêu cầu gốc
+├── reports_v5/                 # Báo cáo huấn luyện & đối đầu chi tiết v5
+│   ├── COMPARISON_REPORT.md
+│   ├── RTDETR_TRAINING_REPORT.md
+│   └── RFDETR_TRAINING_REPORT.md
+├── scripts/
+│   └── fix_test_reports.py     # Tiện ích chuẩn hóa báo cáo đánh giá
+├── requirements.txt            # Danh sách thư viện cần thiết
+├── sync_storage.py             # Script đồng bộ dữ liệu tự động từ Modal Volume
+├── RUN_GUIDE.md                # Hướng dẫn chi tiết từng câu lệnh vận hành
 └── TRAINING_PLAN.md            # Kế hoạch chi tiết & nhật ký tiến độ
 ```
 
 ---
 
-## 3. Hướng Dẫn Chạy Trên Modal GPU
-
-Vì Modal Secret `roboflow-secret` đã được tạo sẵn trên tài khoản của bạn, các lệnh chạy cực kỳ đơn giản và không cần truyền lại API key.
+## 4. Hướng Dẫn Vận Hành Trên Modal GPU
 
 ### Chạy Toàn Bộ Pipeline Tự Động (Download + Train RT-DETR + Train RF-DETR + Eval):
 ```bash
@@ -83,10 +124,11 @@ modal run modal_app/pipeline.py::evaluate_both_models
 
 ---
 
-## 4. Vị Trí Lưu Trữ Dữ Liệu Trên Modal Volume (`food-detection-training`)
+## 5. Đồng Bộ Dữ Liệu Từ Modal Volume Về Máy Tính
 
-- **Dataset**: `/vol/datasets/completed-project-5/`
-- **Checkpoints RT-DETR**: `/vol/checkpoints/rtdetr/best.pt`, `/vol/checkpoints/rtdetr/last.pt`
-- **Checkpoints RF-DETR**: `/vol/checkpoints/rfdetr/best.pth`, `/vol/checkpoints/rfdetr/last.pth`
-- **Logs từng Epoch**: `/vol/logs/rtdetr_epoch_logs.csv`, `/vol/logs/rfdetr_epoch_logs.csv`
-- **Báo cáo so sánh**: `/vol/logs/comparison_report.md`
+Dự án tích hợp sẵn công cụ đồng bộ dữ liệu nhanh từ Modal Cloud Volume `food-detection-training`:
+
+```bash
+python sync_storage.py
+```
+Hệ thống sẽ tự động kéo logs, metrics CSV, báo cáo markdown và checkpoints về thư mục cục bộ `synced_results/`.

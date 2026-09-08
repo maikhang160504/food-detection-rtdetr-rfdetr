@@ -21,7 +21,9 @@
 | **Tốc độ suy luận (Inference Latency)** | **5.4 ms / ảnh (~185 FPS)** | ~12.5 ms / ảnh (~80 FPS) | **Nhanh hơn 2.3x** | 🏆 **RT-DETR** |
 | **Kích thước trọng số (Model Size)** | **63.4 MB** (`best.pt`) | 134.2 MB (`best.pth`) | **Nhẹ hơn 2.1x** | 🏆 **RT-DETR** |
 | **Số lượng tham số (Parameters)** | **32.0M params** | 33.8M params | Tương đương | 🏆 **RT-DETR** |
-| **Số Epochs hoàn thành** | 50 Epochs | **35 Epochs** (Early Stopping) | Tiết kiệm 30% time | 🏆 **RF-DETR** |
+| **Số Epochs hoàn thành** | 50 Epochs | **35 Epochs** (Early Stopping) | Tiết kiệm 30% epochs | 🏆 **RF-DETR** |
+| **Thời gian huấn luyện / Epoch** | **~208 s / epoch** (~3.5 phút) | ~668 s / epoch (~11.1 phút) | **Nhanh hơn 3.2x** | 🏆 **RT-DETR** |
+| **Tổng thời gian huấn luyện** | **~2.9 giờ** (50 epochs) | ~6.5 giờ (35 epochs) | **Nhanh hơn 2.2x** | 🏆 **RT-DETR** |
 
 ---
 

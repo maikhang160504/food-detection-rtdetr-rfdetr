@@ -129,7 +129,7 @@ def reset_runs():
     image=image,
     gpu="A100",
     volumes={"/vol": volume},
-    timeout=18000,  # 5 giờ (thoải mái cho 50 epochs)
+    timeout=43200,  # 12 giờ (thoải mái cho 50 epochs)
 )
 def train_rtdetr_step():
     from src.rtdetr.train import train_rtdetr
@@ -151,20 +151,72 @@ def train_rtdetr_step():
     return best_ckpt
 
 
+def _ensure_coco_dataset_ready():
+    import os
+    import shutil
+    from pathlib import Path
+    from roboflow import Roboflow
+
+    coco_dir = "/vol/datasets/completed-project-5/coco"
+    coco_test = "/vol/datasets/completed-project-5/coco_test"
+
+    if os.path.exists(coco_test):
+        shutil.rmtree(coco_test, ignore_errors=True)
+
+    train_json = Path(coco_dir) / "train" / "_annotations.coco.json"
+    if not train_json.exists():
+        print(f"[*] COCO dataset chưa sẵn sàng hoặc thiếu file JSON. Đang tải định dạng COCO từ Roboflow vào {coco_dir}...")
+        if os.path.exists(coco_dir):
+            shutil.rmtree(coco_dir, ignore_errors=True)
+        api_key = os.environ.get("ROBOFLOW_API_KEY")
+        rf = Roboflow(api_key=api_key)
+        project = rf.workspace("nckhcict2025").project("completed-project")
+        version = project.version(5)
+        version.download("coco", location=coco_dir)
+        print(f"[+] Tải COCO thành công! Kiểm tra train json: {train_json.exists()}")
+
+    stray_yaml = Path(coco_dir) / "data.yaml"
+    if stray_yaml.exists():
+        try:
+            stray_yaml.unlink()
+        except Exception:
+            pass
+
+    volume.commit()
+    return coco_dir
+
+
+@app.function(
+    image=image,
+    volumes={"/vol": volume},
+    secrets=[secret] if secret else [],
+    timeout=1800,
+)
+def setup_coco_step():
+    """Tải và chuẩn bị sẵn sàng tập dữ liệu chuẩn COCO JSON trên CPU (tiết kiệm GPU credits)."""
+    volume.reload()
+    coco_dir = _ensure_coco_dataset_ready()
+    volume.commit()
+    print(f"[+] Tập dữ liệu COCO đã sẵn sàng tại: {coco_dir}")
+    return True
+
+
 @app.function(
     image=image,
     gpu="A100",
     volumes={"/vol": volume},
-    timeout=18000,  # 5 giờ
+    secrets=[secret] if secret else [],
+    timeout=43200,  # 12 giờ
 )
 def train_rfdetr_step():
     from src.rfdetr.train import train_rfdetr
 
     volume.reload()
     print("[*] STEP 3: Training RF-DETR for 50 epochs on GPU A100...")
+    coco_dir = _ensure_coco_dataset_ready()
     try:
         best_ckpt = train_rfdetr(
-            dataset_dir="/vol/datasets/completed-project-5/yolo",
+            dataset_dir=coco_dir,
             config_path="/root/configs/rfdetr.yaml",
             output_dir="/vol/checkpoints/rfdetr",
             log_dir="/vol/logs/rfdetr",
@@ -191,17 +243,17 @@ def evaluate_both_models():
     volume.reload()
     print("[*] STEP 4: Evaluating RT-DETR and RF-DETR on Test split...")
     
-    # 1. RT-DETR eval
+    # 1. RT-DETR eval (YOLO format)
     rt_metrics, rt_report = evaluate_rtdetr(
         checkpoint_path="/vol/checkpoints/rtdetr/best.pt",
         data_yaml_path="/vol/datasets/completed-project-5/yolo/data.yaml",
         output_dir="/vol/outputs/rtdetr_eval",
     )
 
-    # 2. RF-DETR eval
+    # 2. RF-DETR eval (COCO format)
     rf_metrics, rf_report = evaluate_rfdetr(
         checkpoint_path="/vol/checkpoints/rfdetr/best.pth",
-        dataset_dir="/vol/datasets/completed-project-5/yolo",
+        dataset_dir="/vol/datasets/completed-project-5/coco",
         output_dir="/vol/outputs/rfdetr_eval",
     )
 
@@ -247,7 +299,7 @@ def evaluate_rfdetr_step():
     volume.reload()
     rf_metrics, rf_report = evaluate_rfdetr(
         checkpoint_path="/vol/checkpoints/rfdetr/best.pth",
-        dataset_dir="/vol/datasets/completed-project-5/yolo",
+        dataset_dir="/vol/datasets/completed-project-5/coco",
         output_dir="/vol/outputs/rfdetr_eval",
     )
     volume.commit()
@@ -274,7 +326,8 @@ def eval_rfdetr():
     image=image,
     gpu="A100",
     volumes={"/vol": volume},
-    timeout=14400,
+    secrets=[secret] if secret else [],
+    timeout=43200,  # 12 giờ
 )
 def run_rfdetr_cloud_pipeline():
     """Hàm chạy 100% trên Cloud: Huấn luyện RF-DETR nốt 20 epochs và tự động xuất báo cáo so sánh."""
@@ -284,9 +337,10 @@ def run_rfdetr_cloud_pipeline():
     from src.common.metrics_reporter import MetricsReporter
     
     volume.reload()
+    coco_dir = _ensure_coco_dataset_ready()
     print("[*] [CLOUD TASK] Bắt đầu tiếp tục huấn luyện RF-DETR trên GPU A100...")
     rf_ckpt = train_rfdetr(
-        dataset_dir="/vol/datasets/completed-project-5/yolo",
+        dataset_dir=coco_dir,
         config_path="configs/rfdetr.yaml",
         output_dir="/vol/checkpoints/rfdetr",
         log_dir="/vol/logs/rfdetr",
@@ -308,7 +362,7 @@ def run_rfdetr_cloud_pipeline():
     )
     rf_metrics, rf_report = evaluate_rfdetr(
         checkpoint_path=rf_ckpt,
-        dataset_dir="/vol/datasets/completed-project-5/yolo",
+        dataset_dir=coco_dir,
         output_dir=f"{output_dir}/rfdetr_eval",
     )
 

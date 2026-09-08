@@ -299,7 +299,7 @@ Status: POTENTIAL ISSUE
 - [ ] **5. GPU & VRAM**: Chọn đúng GPU `A10G` (24GB VRAM) hoặc `L4` đảm bảo không OOM với batch size 16 (RT-DETR) và 8 (RF-DETR).
 - [ ] **6. Dataloader Workers**: `num_workers` thiết lập ở mức an toàn (2 hoặc 4).
 - [ ] **7. Atomic Checkpoint**: Đã bật cơ chế ghi tạm `.tmp` trước khi đổi tên thành `.pt`/`.pth`.
-- [ ] **8. Timeout Budget**: Thiết lập timeout cho Modal Function từ `18000s` (5 giờ) trở lên.
+- [ ] **8. Timeout Budget**: Thiết lập timeout cho Modal Function từ `43200s` (12 giờ) trở lên.
 - [ ] **9. Checkpoint Metadata**: Kiểm tra tính khớp nối của `num_classes` và `dataset_version` khi thực hiện resume.
 - [ ] **10. Smoke Test**: Chạy thử 1 epoch smoke test trên subset để kiểm tra toàn bộ luồng trước khi chạy chính thức 50 epochs.
 

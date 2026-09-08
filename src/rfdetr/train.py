@@ -23,14 +23,46 @@ def sync_and_export_rfdetr_logs(output_dir: str, log_dir: str, epoch_logger: Epo
     # 1. Đọc từ TensorBoard Event Files (chính xác và đầy đủ nhất cho từng step/epoch)
     try:
         from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
-        event_files = sorted(glob.glob(os.path.join(output_dir, "events*")) + glob.glob(os.path.join(output_dir, "**", "events*"), recursive=True))
+        event_files = sorted(list(set(glob.glob(os.path.join(output_dir, "events*")) + glob.glob(os.path.join(output_dir, "**", "events*"), recursive=True))))
         if event_files:
             all_events_by_step = {}
+            step_durations = {}
+
             for ef in event_files:
                 try:
                     ea = EventAccumulator(ef)
                     ea.Reload()
                     scalars = ea.Tags().get("scalars", [])
+
+                    # Xác định thời điểm bắt đầu session huấn luyện trong file này
+                    first_time = None
+                    for tag_cand in ["train/lr", "train/loss", "train/loss_ce"]:
+                        if tag_cand in scalars:
+                            ev_list = ea.Scalars(tag_cand)
+                            if ev_list:
+                                first_time = ev_list[0].wall_time
+                                break
+                    if first_time is None and scalars:
+                        first_time = ea.Scalars(scalars[0])[0].wall_time
+
+                    # Thu thập các step có validation metric trong file này để tính duration
+                    file_val_steps = []
+                    if "val/mAP_50_95" in scalars:
+                        for ev in ea.Scalars("val/mAP_50_95"):
+                            file_val_steps.append((ev.step, ev.wall_time))
+                    elif "val/loss" in scalars:
+                        for ev in ea.Scalars("val/loss"):
+                            file_val_steps.append((ev.step, ev.wall_time))
+
+                    file_val_steps.sort(key=lambda x: x[0])
+                    prev_t = first_time
+                    for s, wt in file_val_steps:
+                        if prev_t is not None and wt >= prev_t:
+                            step_durations[s] = round(wt - prev_t, 2)
+                        else:
+                            step_durations[s] = 0.0
+                        prev_t = wt
+
                     for tag in scalars:
                         for ev in ea.Scalars(tag):
                             step = ev.step
@@ -55,6 +87,7 @@ def sync_and_export_rfdetr_logs(output_dir: str, log_dir: str, epoch_logger: Epo
                     val_rec = float(d.get("val/recall", 0.0))
                     val_map50 = float(d.get("val/mAP_50", 0.0))
                     val_map50_95 = float(d.get("val/mAP_50_95", 0.0))
+                    epoch_time = step_durations.get(step, 0.0)
 
                     extracted_rows.append({
                         "Epoch": ep_idx,
@@ -67,7 +100,7 @@ def sync_and_export_rfdetr_logs(output_dir: str, log_dir: str, epoch_logger: Epo
                         "Val Recall": round(val_rec, 4),
                         "val_mAP50": round(val_map50, 4),
                         "val_mAP50_95": round(val_map50_95, 4),
-                        "Epoch Time (s)": 0.0,
+                        "Epoch Time (s)": epoch_time,
                     })
     except Exception as e:
         print(f"[!] Warning extracting from TensorBoard: {e}")
@@ -113,7 +146,7 @@ def sync_and_export_rfdetr_logs(output_dir: str, log_dir: str, epoch_logger: Epo
         for r in extracted_rows:
             epoch_logger.logs_dict[int(r["Epoch"])] = r
         epoch_logger.save_csv()
-        print(f"[+] [LOG EXPORT] Đã cập nhật thành công {len(extracted_rows)} epochs vào: {epoch_logger.log_file_path}")
+        print(f"[+] [LOG EXPORT] Successfully exported {len(extracted_rows)} epochs to: {epoch_logger.log_file_path}")
     else:
         epoch_logger.save_csv()
 

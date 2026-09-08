@@ -48,22 +48,9 @@ def download_dataset(
     # 1. Download YOLO format (for RT-DETR)
     yolo_yaml = Path(target_dir_yolo) / "data.yaml"
     if not yolo_yaml.exists():
-        print(f"[*] [DOWNLOAD MỚI] Đang tải YOLO format...")
-        yolo_dataset = version.download("yolov8")
-        actual_yolo_loc = getattr(yolo_dataset, "location", None) or os.path.abspath(f"{project_name}-{version_num}")
-        print(f"[+] YOLO downloaded to: {actual_yolo_loc}")
-        
-        # Di chuyển sang target_dir_yolo
-        if os.path.exists(actual_yolo_loc):
-            os.makedirs(target_dir_yolo, exist_ok=True)
-            for item in os.listdir(actual_yolo_loc):
-                s = os.path.join(actual_yolo_loc, item)
-                d = os.path.join(target_dir_yolo, item)
-                if os.path.isdir(s):
-                    shutil.copytree(s, d, dirs_exist_ok=True)
-                else:
-                    shutil.copy2(s, d)
-            print(f"[+] Đã sao chép YOLO vào {target_dir_yolo}: {os.listdir(target_dir_yolo)}")
+        print(f"[*] [DOWNLOAD MỚI] Đang tải YOLO format vào {target_dir_yolo}...")
+        yolo_dataset = version.download("yolov8", location=target_dir_yolo)
+        print(f"[+] YOLO downloaded to: {target_dir_yolo}")
     else:
         print(f"[=] [TÁI SỬ DỤNG] YOLO dataset đã tồn tại sẵn tại: {target_dir_yolo} (Không cần tải lại)")
 
@@ -71,21 +58,11 @@ def download_dataset(
     if download_coco:
         coco_train_json = Path(target_dir_coco) / "train" / "_annotations.coco.json"
         if not coco_train_json.exists():
-            print(f"[*] [DOWNLOAD MỚI] Đang tải COCO format...")
-            coco_dataset = version.download("coco")
-            actual_coco_loc = getattr(coco_dataset, "location", None) or os.path.abspath(f"{project_name}-{version_num}")
-            print(f"[+] COCO downloaded to: {actual_coco_loc}")
-            
-            if os.path.exists(actual_coco_loc):
-                os.makedirs(target_dir_coco, exist_ok=True)
-                for item in os.listdir(actual_coco_loc):
-                    s = os.path.join(actual_coco_loc, item)
-                    d = os.path.join(target_dir_coco, item)
-                    if os.path.isdir(s):
-                        shutil.copytree(s, d, dirs_exist_ok=True)
-                    else:
-                        shutil.copy2(s, d)
-                print(f"[+] Đã sao chép COCO vào {target_dir_coco}: {os.listdir(target_dir_coco)}")
+            print(f"[*] [DOWNLOAD MỚI] Đang tải COCO format vào {target_dir_coco}...")
+            if os.path.exists(target_dir_coco):
+                shutil.rmtree(target_dir_coco, ignore_errors=True)
+            coco_dataset = version.download("coco", location=target_dir_coco)
+            print(f"[+] COCO downloaded to: {target_dir_coco}")
         else:
             print(f"[=] [TÁI SỬ DỤNG] COCO dataset đã tồn tại sẵn tại: {target_dir_coco} (Không cần tải lại)")
 

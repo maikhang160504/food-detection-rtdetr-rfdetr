@@ -43,6 +43,7 @@ image = (
         "supervision>=0.19.0",
         "tensorboard",
         "torchinfo",
+        "fvcore",
         "rfdetr[train,loggers]",
     )
     .env({
@@ -237,35 +238,72 @@ def train_rfdetr_step():
     timeout=3600,
 )
 def evaluate_both_models():
+    import shutil
     from src.rtdetr.evaluate import evaluate_rtdetr
     from src.rfdetr.evaluate import evaluate_rfdetr
     from src.common.metrics_reporter import MetricsReporter
+    from src.common.tee_logger import TeeLogger
 
     volume.reload()
-    print("[*] STEP 4: Evaluating RT-DETR and RF-DETR on Test split...")
+    os.makedirs("/vol/logs", exist_ok=True)
+    os.makedirs("/vol/outputs/rtdetr_eval", exist_ok=True)
+    os.makedirs("/vol/outputs/rfdetr_eval", exist_ok=True)
+
+    print("\n================================================================================")
+    print("  BẮT ĐẦU ĐÁNH GIÁ TUẦN TỰ CẢ 2 MÔ HÌNH (GHI LOG ĐẦY ĐỦ CHO TỪNG MODEL)")
+    print("================================================================================\n")
     
     # 1. RT-DETR eval (YOLO format)
-    rt_metrics, rt_report = evaluate_rtdetr(
-        checkpoint_path="/vol/checkpoints/rtdetr/best.pt",
-        data_yaml_path="/vol/datasets/completed-project-5/yolo/data.yaml",
-        output_dir="/vol/outputs/rtdetr_eval",
-    )
+    print("\n" + "="*80)
+    print("  [GIAI ĐOẠN 1/3] ĐÁNH GIÁ MÔ HÌNH RT-DETR-L (TẬP TEST)")
+    print("="*80)
+    with TeeLogger(
+        primary_log_path="/vol/logs/rtdetr_evaluation_full.log",
+        secondary_log_path="/vol/outputs/rtdetr_eval/rtdetr_eval.log",
+        model_name="RT-DETR-L",
+        task_name="EVALUATION_TEST_SPLIT",
+    ):
+        rt_metrics, rt_report = evaluate_rtdetr(
+            checkpoint_path="/vol/checkpoints/rtdetr/best.pt",
+            data_yaml_path="/vol/datasets/completed-project-5/yolo/data.yaml",
+            output_dir="/vol/outputs/rtdetr_eval",
+        )
+    volume.commit()
+    print("[+] Hoàn tất đánh giá RT-DETR! Log đã lưu tại: /vol/logs/rtdetr_evaluation_full.log")
 
     # 2. RF-DETR eval (COCO format)
-    rf_metrics, rf_report = evaluate_rfdetr(
-        checkpoint_path="/vol/checkpoints/rfdetr/best.pth",
-        dataset_dir="/vol/datasets/completed-project-5/coco",
-        output_dir="/vol/outputs/rfdetr_eval",
-    )
+    print("\n" + "="*80)
+    print("  [GIAI ĐOẠN 2/3] ĐÁNH GIÁ MÔ HÌNH RF-DETR-MEDIUM (TẬP TEST)")
+    print("="*80)
+    with TeeLogger(
+        primary_log_path="/vol/logs/rfdetr_evaluation_full.log",
+        secondary_log_path="/vol/outputs/rfdetr_eval/rfdetr_eval.log",
+        model_name="RF-DETR-Medium",
+        task_name="EVALUATION_TEST_SPLIT",
+    ):
+        rf_metrics, rf_report = evaluate_rfdetr(
+            checkpoint_path="/vol/checkpoints/rfdetr/best.pth",
+            dataset_dir="/vol/datasets/completed-project-5/coco",
+            output_dir="/vol/outputs/rfdetr_eval",
+        )
+    volume.commit()
+    print("[+] Hoàn tất đánh giá RF-DETR! Log đã lưu tại: /vol/logs/rfdetr_evaluation_full.log")
 
     # 3. Generate comparison report
+    print("\n" + "="*80)
+    print("  [GIAI ĐOẠN 3/3] XUẤT BÁO CÁO SO SÁNH ĐỐI ĐẦU CHÍNH THỨC")
+    print("="*80)
     comp_file = "/vol/logs/comparison_report.md"
     rt_json = "/vol/outputs/rtdetr_eval/rt-detr_test_report.json"
     rf_json = "/vol/outputs/rfdetr_eval/rf-detr_test_report.json"
 
     if os.path.exists(rt_json) and os.path.exists(rf_json):
         MetricsReporter.generate_comparison_report(rt_json, rf_json, comp_file)
-        print(f"[+] Comparison report generated at: {comp_file}")
+        print(f"[+] Báo cáo so sánh đối đầu đã lưu tại: {comp_file}")
+        try:
+            shutil.copy2(comp_file, "/vol/outputs/comparison_report.md")
+        except Exception:
+            pass
 
     volume.commit()
     return {"rt_metrics": rt_metrics, "rf_metrics": rf_metrics, "comparison_report": comp_file}
@@ -279,12 +317,19 @@ def evaluate_both_models():
 )
 def evaluate_rtdetr_step():
     from src.rtdetr.evaluate import evaluate_rtdetr
+    from src.common.tee_logger import TeeLogger
     volume.reload()
-    rt_metrics, rt_report = evaluate_rtdetr(
-        checkpoint_path="/vol/checkpoints/rtdetr/best.pt",
-        data_yaml_path="/vol/datasets/completed-project-5/yolo/data.yaml",
-        output_dir="/vol/outputs/rtdetr_eval",
-    )
+    with TeeLogger(
+        primary_log_path="/vol/logs/rtdetr_evaluation_full.log",
+        secondary_log_path="/vol/outputs/rtdetr_eval/rtdetr_eval.log",
+        model_name="RT-DETR-L",
+        task_name="EVALUATION_TEST_SPLIT",
+    ):
+        rt_metrics, rt_report = evaluate_rtdetr(
+            checkpoint_path="/vol/checkpoints/rtdetr/best.pt",
+            data_yaml_path="/vol/datasets/completed-project-5/yolo/data.yaml",
+            output_dir="/vol/outputs/rtdetr_eval",
+        )
     volume.commit()
     return rt_metrics, rt_report
 
@@ -297,14 +342,128 @@ def evaluate_rtdetr_step():
 )
 def evaluate_rfdetr_step():
     from src.rfdetr.evaluate import evaluate_rfdetr
+    from src.common.tee_logger import TeeLogger
     volume.reload()
-    rf_metrics, rf_report = evaluate_rfdetr(
-        checkpoint_path="/vol/checkpoints/rfdetr/best.pth",
-        dataset_dir="/vol/datasets/completed-project-5/coco",
-        output_dir="/vol/outputs/rfdetr_eval",
-    )
+    with TeeLogger(
+        primary_log_path="/vol/logs/rfdetr_evaluation_full.log",
+        secondary_log_path="/vol/outputs/rfdetr_eval/rfdetr_eval.log",
+        model_name="RF-DETR-Medium",
+        task_name="EVALUATION_TEST_SPLIT",
+    ):
+        rf_metrics, rf_report = evaluate_rfdetr(
+            checkpoint_path="/vol/checkpoints/rfdetr/best.pth",
+            dataset_dir="/vol/datasets/completed-project-5/coco",
+            output_dir="/vol/outputs/rfdetr_eval",
+        )
     volume.commit()
     return rf_metrics, rf_report
+
+
+@app.function(
+    image=image,
+    gpu="A100",
+    volumes={"/vol": volume},
+    timeout=600,
+)
+def test_flops_step():
+    """Đo đạc chính xác FLOPs của cả 2 mô hình bằng FlopCounterMode của PyTorch."""
+    import torch
+    from torch.utils.flop_counter import FlopCounterMode
+    from ultralytics import RTDETR
+    from rfdetr import RFDETRMedium
+
+    volume.reload()
+    results = {}
+    imgsz = 640
+
+    # 1. RT-DETR
+    rt_ckpt = "/vol/checkpoints/rtdetr/best.pt"
+    print(f"\n[*] Đang nạp RT-DETR từ {rt_ckpt}...")
+    rt_model = RTDETR(rt_ckpt)
+    rt_net = rt_model.model.cuda()
+    rt_net.eval()
+    
+    rt_dummy = torch.randn(1, 3, imgsz, imgsz, device="cuda")
+    with torch.no_grad():
+        with FlopCounterMode(display=False) as flop_counter:
+            _ = rt_net(rt_dummy)
+        rt_total_flops = flop_counter.get_total_flops()
+    
+    rt_raw_gflops = round(float(rt_total_flops) / 1e9, 2)
+    rt_gmacs = round(float(rt_total_flops) / 2.0 / 1e9, 2)
+    print(f"[+] RT-DETR: Raw FLOPs = {rt_raw_gflops} G | GMACs = {rt_gmacs} G")
+    results["RT-DETR"] = {"raw_gflops": rt_raw_gflops, "gmacs": rt_gmacs}
+
+    # 2. RF-DETR
+    rf_ckpt = "/vol/checkpoints/rfdetr/best.pth"
+    print(f"\n[*] Đang nạp RF-DETR từ {rf_ckpt}...")
+    rf_model = RFDETRMedium(num_classes=32, pretrain_weights=rf_ckpt, resolution=imgsz)
+    print(f"[*] rf_model type: {type(rf_model)}, dir: {[a for a in dir(rf_model) if not a.startswith('__')]}")
+    
+    # Inspect model attribute
+    real_net = None
+    if hasattr(rf_model, "model"):
+        m_ctx = rf_model.model
+        print(f"[*] rf_model.model type: {type(m_ctx)}, dir: {[a for a in dir(m_ctx) if not a.startswith('__')]}")
+        if hasattr(m_ctx, "model"):
+            print(f"[*] rf_model.model.model type: {type(m_ctx.model)}")
+            real_net = m_ctx.model
+        elif hasattr(m_ctx, "net"):
+            real_net = m_ctx.net
+        elif hasattr(m_ctx, "module"):
+            real_net = m_ctx.module
+    
+    if real_net is None:
+        for attr in ["model", "net", "network", "_model", "detector"]:
+            if hasattr(rf_model, attr) and isinstance(getattr(rf_model, attr), torch.nn.Module):
+                real_net = getattr(rf_model, attr)
+                break
+                
+    if real_net is None and hasattr(rf_model, "model"):
+        for attr in ["model", "net", "network", "_model", "detector"]:
+            if hasattr(rf_model.model, attr) and isinstance(getattr(rf_model.model, attr), torch.nn.Module):
+                real_net = getattr(rf_model.model, attr)
+                break
+
+    print(f"[+] Found real_net: {type(real_net)}")
+    if real_net is not None:
+        rf_net = real_net.cuda()
+        rf_net.eval()
+        
+        # Test 1: FlopCounterMode
+        rf_dummy = torch.randn(1, 3, imgsz, imgsz, device="cuda", requires_grad=True)
+        try:
+            with FlopCounterMode(display=False) as flop_counter:
+                _ = rf_net(rf_dummy)
+            rf_total_flops = flop_counter.get_total_flops()
+            rf_raw_gflops = round(float(rf_total_flops) / 1e9, 2)
+            rf_gmacs = round(float(rf_total_flops) / 2.0 / 1e9, 2)
+            print(f"[+] RF-DETR FlopCounterMode: Raw FLOPs = {rf_raw_gflops} G | GMACs = {rf_gmacs} G")
+            results["RF-DETR"] = {"raw_gflops": rf_raw_gflops, "gmacs": rf_gmacs}
+        except Exception as e:
+            print(f"[!] FlopCounterMode with grad failed: {e}")
+            # Fallback test with fvcore or thop or torchprofile if FlopCounterMode fails
+            try:
+                from fvcore.nn import FlopCountAnalysis
+                fca = FlopCountAnalysis(rf_net, rf_dummy)
+                fca_total = fca.total()
+                print(f"[+] fvcore FlopCountAnalysis: {fca_total / 1e9:.2f} GFLOPs")
+                results["RF-DETR"] = {"fvcore_gflops": round(fca_total / 1e9, 2)}
+            except Exception as e2:
+                print(f"[!] fvcore failed: {e2}")
+    else:
+        print("[!] Không tìm thấy torch.nn.Module trong rf_model!")
+
+    return results
+
+
+@app.local_entrypoint()
+def test_flops():
+    """Chạy đo kiểm FLOPs bằng PyTorch FlopCounterMode."""
+    res = test_flops_step.remote()
+    print("\n================ KẾT QUẢ ĐO FLOPs CHÍNH XÁC ================")
+    print(res)
+
 
 
 @app.local_entrypoint()

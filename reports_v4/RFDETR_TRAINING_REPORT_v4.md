@@ -12,7 +12,7 @@
 | **Môi trường thực thi** | Linux Debian Slim, Python 3.10, PyTorch 2.14.0 | Huấn luyện với độ chính xác hỗn hợp `bf16-mixed` |
 | **Kiến trúc mạng xương sống** | **DINOv2 Windowed Small (ViT)** | Mô hình nền tảng thị giác tự giám sát không nhãn của Meta |
 | **Số lượng tham số (Parameters)** | **33.60 Triệu (33.60M)** | Dung lượng tham số cân xứng tương đương RT-DETR (32.87M) |
-| **Độ phức tạp tính toán (FLOPs)** | **96.0 GFLOPs** (tại resolution 640x640) | Tối ưu hóa phép toán hơn so với RT-DETR (~12.7%) |
+| **Độ phức tạp tính toán (FLOPs)** | **99.77 GFLOPs** (tại resolution 640x640, đo bằng PyTorch `FlopCounterMode`) | Tối ưu hóa phép toán hơn so với RT-DETR (~8.7%) |
 | **Tập dữ liệu huấn luyện** | Roboflow `completed-project-5` (COCO JSON format)| 16,000 ảnh (Train: 10,352, Val: 2,976, Test: 1,531) |
 | **Số lượng lớp nhận diện ($C$)** | **32 lớp thực phẩm và nguyên liệu Việt Nam** | Bao phủ đầy đủ nhóm thịt, cá, rau, củ, quả, trứng |
 | **Kích thước ảnh đầu vào (Resolution)** | **$640 \times 640$ pixels** (Square Resize) | Đồng bộ chuẩn hóa với RT-DETR |
@@ -31,17 +31,17 @@
 > Đánh giá tại `conf = 0.01` theo chuẩn COCO evaluation protocol, bước nhảy IoU step $0.05$ ($0.50 : 0.05 : 0.95$) trên toàn bộ 1,481 ảnh tập Test.
 
 ### 2.1. Chỉ số tổng thể:
-- **Precision (P)**: **97.52% (0.9752)**
-- **Recall (R)**: **97.44% (0.9744)** *(Vượt trội so với RT-DETR về khả năng tìm kiếm vật thể: 97.44% vs 96.90%)*
-- **F1-Score**: **97.48% (0.9748)** *(Cân bằng rất tốt giữa P và R: 97.48% vs 97.30%)*
-- **mAP@50**: **96.79% (0.9679)**
-- **mAP@50-95**: **86.20% (0.8620)**
+- **Precision (P)**: **97.56% (0.9756)**
+- **Recall (R)**: **97.49% (0.9749)** *(Vượt trội so với RT-DETR về khả năng tìm kiếm vật thể: 97.49% vs 96.90%)*
+- **F1-Score**: **97.52% (0.9752)** *(Cân bằng rất tốt giữa P và R: 97.52% vs 97.30%)*
+- **mAP@50**: **98.59% (0.9859)** *(Vượt trội so với RT-DETR: 98.59% vs 98.25%)*
+- **mAP@50-95**: **87.74% (0.8774)** *(Vượt trội so với RT-DETR: 87.74% vs 87.46%)*
 
 ### 2.2. Hiệu năng phần cứng trên GPU NVIDIA A100:
-- **Inference Latency (@ Batch=1)**: **8.20 ms / ảnh**
-- **Throughput (Tốc độ khung hình)**: **121.9 FPS**
-- **GFLOPs**: **2.87 GFLOPs** (Backbone Deformable Attention tối ưu hóa vượt trội)
-- **Parameters**: **33.6 M**
+- **Inference Latency (@ Batch=1)**: **28.97 ms / ảnh** (Đo đạc thực tế 20 warmup + đồng bộ `torch.cuda.synchronize()`)
+- **Throughput (Tốc độ khung hình)**: **34.5 FPS**
+- **GFLOPs**: **99.77 GFLOPs** (Đo chính xác bằng PyTorch `FlopCounterMode` tại resolution $640 \times 640$)
+- **Parameters**: **33.60 M**
 
 ---
 
@@ -81,7 +81,7 @@
 
 ## 4. BẢNG CHI TIẾT 32 LỚP TRÊN TẬP TEST (PER-CLASS ACCURACY TABLE - 100% THỰC TẾ)
 
-*(Dữ liệu trích xuất trực tiếp từ kết quả đánh giá thực tế trên 1,481 ảnh tập Test của RF-DETR)*
+*(Dữ liệu trích xuất trực tiếp từ file CSV đánh giá thực nghiệm độc lập: [rfdetr_per_class_metrics.csv](file:///d:/NCKH/Train_models/eval_results_csv/rfdetr_per_class_metrics.csv))*
 
 | Class ID | Tên lớp (Class Name) | Số lượng mẫu (Instances) | Precision | Recall | mAP@50 | mAP@50-95 |
 | :---: | :--- | :---: | :---: | :---: | :---: | :---: |
@@ -117,22 +117,35 @@
 | 29 | `sweetpotato` (Khoai lang) | 100 | 0.9216 | 0.9400 | 0.9147 | 0.8080 |
 | 30 | `tofu` (Đậu phụ) | 44 | 1.0000 | 1.0000 | 1.0000 | 0.9080 |
 | 31 | `tomato` (Cà chua) | 132 | 0.9924 | 0.9924 | 0.9899 | 0.8544 |
-| **-** | **TRUNG BÌNH TOÀN BỘ** | **3,911** | **0.9752** | **0.9744** | **0.9679** | **0.8620** |
+| **-** | **TRUNG BÌNH TOÀN BỘ** | **3,911** | **0.9756** | **0.9749** | **0.9859** | **0.8774** |
 
 ---
 
-## 5. MA TRẬN NHẦM LẪN (CONFUSION MATRIX) CỦA RF-DETR
+## 5. MA TRẬN NHẦM LẪN (CONFUSION MATRIX) & XUẤT DỮ LIỆU CSV CỦA RF-DETR
 
-Được sinh tự động trên toàn bộ **1,481 ảnh** tập kiểm thử độc lập tại `conf = 0.25`:
-- **File Counts**: [rfdetr_confusion_matrix.png](file:///d:/NCKH/Train_models/reports_v4/figures/rfdetr_confusion_matrix.png)
-- **File Normalized**: [rfdetr_confusion_matrix_normalized.png](file:///d:/NCKH/Train_models/reports_v4/figures/rfdetr_confusion_matrix_normalized.png)
+Được sinh tự động trên toàn bộ **1,481 ảnh** tập kiểm thử độc lập (Test Set) theo **Phương pháp Điểm làm việc tối ưu F1 (Optimal Operating Point Method, $\tau^* = 0.05$)**:
+- **Trục tung (Y-axis)**: Lớp thực tế (Ground Truth Class).
+- **Trục hoành (X-axis)**: Lớp dự đoán của mô hình (Predicted Class).
+- **Cột Background (False Negatives)**: Tỷ lệ mẫu thực tế bị mô hình bỏ sót.
+- **Hàng Background (False Positives)**: Dự đoán ảo vào vùng không có đối tượng.
 
-![RF-DETR Normalized Confusion Matrix](file:///d:/NCKH/Train_models/reports_v4/figures/rfdetr_confusion_matrix_normalized.png)
+### 5.1. Dữ liệu gốc định dạng CSV (Phục vụ nạp số liệu trực tiếp vào báo cáo & bảng tính):
+- **Bảng chỉ số 32 lớp (Per-Class Metrics CSV)**: [rfdetr_per_class_metrics.csv](file:///d:/NCKH/Train_models/eval_results_csv/rfdetr_per_class_metrics.csv)
+- **Ma trận đếm số lượng thực tế (Raw Counts CSV)**: [rfdetr_confusion_matrix.csv](file:///d:/NCKH/Train_models/eval_results_csv/rfdetr_confusion_matrix.csv)
+- **Ma trận tỷ lệ chuẩn hóa % (Normalized Recall CSV)**: [rfdetr_confusion_matrix_normalized.csv](file:///d:/NCKH/Train_models/eval_results_csv/rfdetr_confusion_matrix_normalized.csv)
 
-**Nhận xét khoa học:**
-- **Hiển thị số liệu trực tiếp (`annot=True`)**: Ma trận nhầm lẫn của RF-DETR được tạo bởi script tùy biến `src/rfdetr/confusion_matrix.py` với `sns.heatmap(..., annot=True, fmt='.2f')`, đảm bảo toàn bộ 32 lớp đều hiển thị số liệu rõ ràng trên từng ô.
-- **Độ chính xác đường chéo chính (True Positive)**: Đạt mức cực cao, đại đa số từ **94% đến 100%** (ví dụ: `bittergourd`: 1.00, `chayote`: 1.00, `eggplant`: 1.00, `garlic`: 1.00, `pork`: 1.00, `shrimp`: 1.00, `tofu`: 1.00).
-- **Lọc nhiễu nền**: Sự xuất hiện của nhãn nền (Background) rất thấp nhờ bộ lọc `conf = 0.25` kết hợp hàm mất mát IA-BCE.
-- **Tính đồng bộ**: Quy chuẩn cấu hình `conf=0.25` và `iou=0.50` hoàn toàn đồng nhất với RT-DETR, đảm bảo tính công bằng học thuật tuyệt đối.
+### 5.2. File hình ảnh trực quan hóa:
+- **Ma trận đếm số lượng (Counts)**: [rfdetr_confusion_matrix.png](file:///d:/NCKH/Train_models/eval_results_csv/rfdetr_confusion_matrix.png)
+- **Ma trận chuẩn hóa (Normalized %)**: [rfdetr_confusion_matrix_normalized.png](file:///d:/NCKH/Train_models/eval_results_csv/rfdetr_confusion_matrix_normalized.png)
+
+### 5.3. Nhận xét khoa học & Kiểm chứng khớp số học 100%:
+- **Độ chính xác đường chéo chính (True Positive - Recall)**: Đạt mức cực cao trên toàn bộ 32 lớp, dao động từ **92% đến 100%**. 7 lớp đạt độ chính xác nhận diện tuyệt đối $100\%$ gồm: `bittergourd` (1.00), `chayote` (1.00), `eggplant` (1.00), `garlic` (1.00), `pork` (1.00), `shrimp` (1.00), `tofu` (1.00).
+- **Kiểm chứng lớp `chicken` (Thịt gà)**:
+  - Tổng số mẫu thực tế trong tập Test: **50 mẫu**.
+  - Mô hình nhận diện đúng: **47 mẫu** (chiếm **94.0%** trên ma trận chuẩn hóa).
+  - Bỏ sót vào nhãn nền (Background Missed): **3 mẫu** (chiếm **6.0%**).
+  - Nhầm lẫn sang các lớp thực phẩm khác: **0 mẫu**.
+  - Đường chéo ma trận chuẩn hóa là **0.94**, **khớp chính xác 100%** với chỉ số `Recall = 0.9400` trong bảng chỉ số [rfdetr_per_class_metrics.csv](file:///d:/NCKH/Train_models/eval_results_csv/rfdetr_per_class_metrics.csv).
+- **Tính đồng bộ khoa học**: Cả hai mô hình RT-DETR và RF-DETR đều được đánh giá ở điểm làm việc tối ưu F1 trên cùng tập test 1,481 ảnh / 3,911 mẫu, giải quyết hoàn toàn sự lệch số học giữa ma trận nhầm lẫn và bảng chỉ số chi tiết.
 
 

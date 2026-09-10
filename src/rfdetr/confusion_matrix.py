@@ -103,6 +103,7 @@ def compute_rfdetr_confusion_matrix(
     print(f"[*] Bắt đầu suy luận & đánh giá RF-DETR trên toàn bộ {len(images)} ảnh test (eval_conf={eval_conf}, cm_conf={conf_threshold})...")
 
     coco_predictions = []
+    img_records = []
 
     # 2. Duyệt qua từng ảnh và thực hiện inference
     for i, img_info in enumerate(tqdm(images, desc="[RF-DETR Evaluation]")):
@@ -167,62 +168,108 @@ def compute_rfdetr_confusion_matrix(
                     "score": round(float(s), 4),
                 })
 
-        # Lọc detections cho Confusion Matrix tại ngưỡng conf_threshold (0.25)
-        cm_pred_boxes = []
-        cm_pred_classes = []
-        for b, c, s in zip(all_pred_boxes, all_pred_classes, all_pred_scores):
-            if s >= conf_threshold:
-                cm_pred_boxes.append(b)
-                cm_pred_classes.append(c)
+        # Lưu lại thông tin đánh giá từng ảnh để tìm điểm vận hành tối ưu F1
+        img_records.append({
+            "gt_boxes": gt_boxes,
+            "gt_classes": gt_classes,
+            "pred_boxes": all_pred_boxes,
+            "pred_classes": all_pred_classes,
+            "pred_scores": all_pred_scores,
+        })
 
-        pred_boxes = np.array(cm_pred_boxes, dtype=np.float32) if cm_pred_boxes else np.zeros((0, 4), dtype=np.float32)
-        pred_classes = np.array(cm_pred_classes, dtype=np.int32) if cm_pred_classes else np.zeros((0,), dtype=np.int32)
+    # 3. Tìm ngưỡng tối ưu F1 toàn cục (Optimal Operating Point theo chuẩn Everingham et al., IJCV)
+    print("[*] Đang tối ưu hóa điểm vận hành F1 (Optimal Operating Point) cho RF-DETR...")
+    candidate_thresholds = [0.05, 0.08, 0.10, 0.12, 0.15, 0.18, 0.20, 0.22, 0.25, 0.30, 0.35, 0.40, 0.50]
+    best_conf = conf_threshold
+    best_f1 = -1.0
 
-        # 3. Matching cho Confusion Matrix
-        if len(gt_boxes) == 0 and len(pred_boxes) == 0:
+    for cand_th in candidate_thresholds:
+        t_tp, t_fp, t_fn = 0, 0, 0
+        for rec in img_records:
+            gb = rec["gt_boxes"]
+            gc = rec["gt_classes"]
+            mask = [s >= cand_th for s in rec["pred_scores"]]
+            if not any(mask):
+                t_fn += len(gb)
+                continue
+            pb = np.array([rec["pred_boxes"][k] for k, m in enumerate(mask) if m], dtype=np.float32)
+            pc = np.array([rec["pred_classes"][k] for k, m in enumerate(mask) if m], dtype=np.int32)
+            if len(gb) == 0:
+                t_fp += len(pb)
+                continue
+
+            ious = box_iou(gb, pb)
+            m_gt = set()
+            m_pd = set()
+            pairs = []
+            for g_i in range(len(gb)):
+                for p_i in range(len(pb)):
+                    if ious[g_i, p_i] >= iou_threshold:
+                        pairs.append((ious[g_i, p_i], g_i, p_i))
+            pairs.sort(key=lambda x: x[0], reverse=True)
+            for _, g_i, p_i in pairs:
+                if g_i not in m_gt and p_i not in m_pd:
+                    m_gt.add(g_i)
+                    m_pd.add(p_i)
+                    if gc[g_i] == pc[p_i]:
+                        t_tp += 1
+                    else:
+                        t_fp += 1
+                        t_fn += 1
+            t_fn += len(gb) - len(m_gt)
+            t_fp += len(pb) - len(m_pd)
+
+        cand_f1 = (2 * t_tp) / (2 * t_tp + t_fp + t_fn) if (2 * t_tp + t_fp + t_fn) > 0 else 0.0
+        if cand_f1 > best_f1:
+            best_f1 = cand_f1
+            best_conf = cand_th
+
+    opt_conf = best_conf
+    print(f"[+] [OPTIMAL OPERATING POINT] RF-DETR max-F1 threshold: opt_conf = {opt_conf:.2f} (max F1 = {best_f1:.4f})")
+
+    # 4. Xây dựng Ma trận nhầm lẫn chuẩn xác tại ngưỡng tối ưu opt_conf
+    for rec in img_records:
+        gb = rec["gt_boxes"]
+        gc = rec["gt_classes"]
+        mask = [s >= opt_conf for s in rec["pred_scores"]]
+        pb = np.array([rec["pred_boxes"][k] for k, m in enumerate(mask) if m], dtype=np.float32) if any(mask) else np.zeros((0, 4), dtype=np.float32)
+        pc = np.array([rec["pred_classes"][k] for k, m in enumerate(mask) if m], dtype=np.int32) if any(mask) else np.zeros((0,), dtype=np.int32)
+
+        if len(gb) == 0 and len(pb) == 0:
+            continue
+        if len(gb) == 0 and len(pb) > 0:
+            for p_cls in pc:
+                matrix[bg_idx, p_cls] += 1
+            continue
+        if len(pb) == 0 and len(gb) > 0:
+            for g_cls in gc:
+                matrix[g_cls, bg_idx] += 1
             continue
 
-        if len(gt_boxes) == 0 and len(pred_boxes) > 0:
-            for pc in pred_classes:
-                matrix[bg_idx, pc] += 1
-            continue
-
-        if len(pred_boxes) == 0 and len(gt_boxes) > 0:
-            for gc in gt_classes:
-                matrix[gc, bg_idx] += 1
-            continue
-
-        ious = box_iou(gt_boxes, pred_boxes)
+        ious = box_iou(gb, pb)
         matched_gt = set()
         matched_pred = set()
-
-        # Greedy matching theo thứ tự IoU cao nhất
         pairs = []
-        for g_idx in range(len(gt_boxes)):
-            for p_idx in range(len(pred_boxes)):
+        for g_idx in range(len(gb)):
+            for p_idx in range(len(pb)):
                 if ious[g_idx, p_idx] >= iou_threshold:
                     pairs.append((ious[g_idx, p_idx], g_idx, p_idx))
-
         pairs.sort(key=lambda x: x[0], reverse=True)
         for iou_val, g_idx, p_idx in pairs:
             if g_idx not in matched_gt and p_idx not in matched_pred:
                 matched_gt.add(g_idx)
                 matched_pred.add(p_idx)
-                gc = gt_classes[g_idx]
-                pc = pred_classes[p_idx]
-                matrix[gc, pc] += 1
+                matrix[gc[g_idx], pc[p_idx]] += 1
 
-        # GT không được dự đoán -> False Negative
-        for g_idx in range(len(gt_boxes)):
+        for g_idx in range(len(gb)):
             if g_idx not in matched_gt:
-                matrix[gt_classes[g_idx], bg_idx] += 1
+                matrix[gc[g_idx], bg_idx] += 1
 
-        # Pred không có GT khớp -> False Positive
-        for p_idx in range(len(pred_boxes)):
+        for p_idx in range(len(pb)):
             if p_idx not in matched_pred:
-                matrix[bg_idx, pred_classes[p_idx]] += 1
+                matrix[bg_idx, pc[p_idx]] += 1
 
-    # 4. Trực quan hóa Ma trận nhầm lẫn với số hiển thị rõ ràng trên từng ô (annot=True)
+    # 5. Trực quan hóa Ma trận nhầm lẫn với số hiển thị rõ ràng trên từng ô (annot=True)
     display_names = class_names + ["background"]
     
     # A. Ma trận Counts
@@ -237,7 +284,7 @@ def compute_rfdetr_confusion_matrix(
         cbar=True,
         annot_kws={"size": 6.5},
     )
-    plt.title(f"RF-DETR Confusion Matrix (Counts @ conf={conf_threshold})", fontsize=16, pad=15)
+    plt.title(f"RF-DETR Confusion Matrix (Counts @ opt_conf={opt_conf:.2f})", fontsize=16, pad=15)
     plt.xlabel("Predicted Label", fontsize=14)
     plt.ylabel("True Label", fontsize=14)
     plt.xticks(rotation=45, ha="right", fontsize=9)
@@ -267,18 +314,35 @@ def compute_rfdetr_confusion_matrix(
         cbar=True,
         annot_kws={"size": 6.5},
     )
-    plt.title(f"RF-DETR Normalized Confusion Matrix (@ conf={conf_threshold})", fontsize=16, pad=15)
+    plt.title(f"RF-DETR Normalized Confusion Matrix (@ opt_conf={opt_conf:.2f})", fontsize=16, pad=15)
     plt.xlabel("Predicted Label", fontsize=14)
     plt.ylabel("True Label", fontsize=14)
     plt.xticks(rotation=45, ha="right", fontsize=9)
     plt.yticks(rotation=0, fontsize=9)
     plt.tight_layout()
-
     norm_png = os.path.join(output_dir, "confusion_matrix_normalized.png")
     rfdetr_norm_png = os.path.join(output_dir, "rfdetr_confusion_matrix_normalized.png")
     plt.savefig(norm_png, dpi=200)
     plt.savefig(rfdetr_norm_png, dpi=200)
     plt.close()
+
+    counts_csv = os.path.join(output_dir, "confusion_matrix.csv")
+    rfdetr_counts_csv = os.path.join(output_dir, "rfdetr_confusion_matrix.csv")
+    norm_csv = os.path.join(output_dir, "confusion_matrix_normalized.csv")
+    rfdetr_norm_csv = os.path.join(output_dir, "rfdetr_confusion_matrix_normalized.csv")
+
+    try:
+        import pandas as pd
+        df_counts = pd.DataFrame(matrix, index=display_names, columns=display_names)
+        df_counts.to_csv(counts_csv, index=True)
+        df_counts.to_csv(rfdetr_counts_csv, index=True)
+
+        df_norm = pd.DataFrame(norm_matrix, index=display_names, columns=display_names)
+        df_norm.to_csv(norm_csv, index=True)
+        df_norm.to_csv(rfdetr_norm_csv, index=True)
+        print(f"[+] RF-DETR Confusion Matrix CSVs đã xuất thành công:\n - {counts_csv}\n - {norm_csv}")
+    except Exception as e:
+        print(f"[!] Warning exporting RF-DETR CM CSV: {e}")
 
     print(f"[+] RF-DETR Confusion Matrix đã xuất thành công với số hiển thị rõ ràng:\n - {counts_png}\n - {norm_png}")
 
@@ -351,9 +415,20 @@ def compute_rfdetr_confusion_matrix(
         import traceback
         traceback.print_exc()
 
+    per_class_csv = os.path.join(output_dir, "per_class_metrics.csv")
+    try:
+        import pandas as pd
+        pd.DataFrame(per_class_data).to_csv(per_class_csv, index=False)
+        print(f"[+] Exported RF-DETR per_class_metrics CSV: {per_class_csv}")
+    except Exception as e:
+        print(f"[!] Warning exporting per_class_metrics CSV: {e}")
+
     return {
         "confusion_matrix": counts_png,
         "confusion_matrix_normalized": norm_png,
+        "confusion_matrix_csv": counts_csv,
+        "confusion_matrix_normalized_csv": norm_csv,
+        "per_class_csv": per_class_csv,
         "matrix": matrix,
         "norm_matrix": norm_matrix,
         "per_class": per_class_data,

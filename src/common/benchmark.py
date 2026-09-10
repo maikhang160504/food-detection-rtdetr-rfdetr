@@ -26,9 +26,15 @@ def measure_hardware_benchmark(
     device_name = torch.cuda.get_device_name(0) if torch.cuda.is_available() and device.startswith("cuda") else "CPU"
     print(f"\n[*] Bắt đầu benchmark phần cứng cho {model_name} trên thiết bị: {device_name} (imgsz={imgsz})...")
 
-    # 1. Trích xuất PyTorch nn.Module từ wrapper nếu có
+    # 1. Trích xuất PyTorch nn.Module phù hợp cho từng kiến trúc
     torch_model = None
-    if hasattr(model_obj, "model") and isinstance(model_obj.model, torch.nn.Module):
+    if isinstance(model_obj, torch.nn.Module) and type(model_obj).__name__ == "DetectionModel":
+        torch_model = model_obj
+    elif hasattr(model_obj, "model") and type(getattr(model_obj, "model")).__name__ == "DetectionModel":
+        torch_model = model_obj.model
+    elif hasattr(model_obj, "model") and hasattr(model_obj.model, "model") and isinstance(model_obj.model.model, torch.nn.Module):
+        torch_model = model_obj.model.model
+    elif hasattr(model_obj, "model") and isinstance(model_obj.model, torch.nn.Module):
         torch_model = model_obj.model
     elif isinstance(model_obj, torch.nn.Module):
         torch_model = model_obj
@@ -44,90 +50,122 @@ def measure_hardware_benchmark(
         total_params = sum(p.numel() for p in model_obj.parameters())
         params_m = round(total_params / 1e6, 2)
 
-    # 3. Tính GFLOPs
+    # 3. Tính GFLOPs bằng PyTorch FlopCounterMode chính thống
     gflops = 0.0
-    dummy_input = torch.randn((1, 3, imgsz, imgsz), dtype=torch.float32)
-    if device.startswith("cuda") and torch.cuda.is_available():
-        dummy_input = dummy_input.to(device)
+    target_device = "cuda" if torch.cuda.is_available() and device.startswith("cuda") else "cpu"
+    dummy_input = torch.randn((1, 3, imgsz, imgsz), dtype=torch.float32, device=target_device)
 
-    # Thử đo bằng torchinfo hoặc tính toán chuẩn
-    if torch_model is not None and gflops == 0.0:
+    # Tập hợp các candidate nn.Module có thể thực hiện forward pass trực tiếp
+    candidates_to_profile = []
+    if torch_model is not None and isinstance(torch_model, torch.nn.Module):
+        candidates_to_profile.append(torch_model)
+    if model_obj is not None and isinstance(model_obj, torch.nn.Module) and model_obj not in candidates_to_profile:
+        candidates_to_profile.append(model_obj)
+    if hasattr(model_obj, "model") and isinstance(model_obj.model, torch.nn.Module) and model_obj.model not in candidates_to_profile:
+        candidates_to_profile.append(model_obj.model)
+
+    from torch.utils.flop_counter import FlopCounterMode
+
+    for cand in candidates_to_profile:
         try:
-            from torchinfo import summary
-            s = summary(torch_model, input_size=(1, 3, imgsz, imgsz), verbose=0, device="cpu")
-            if hasattr(s, "total_mult_adds") and s.total_mult_adds > 0:
-                gflops = round(float(s.total_mult_adds) / 1e9, 2)
+            cand_dev = next(cand.parameters()).device if hasattr(cand, "parameters") else dummy_input.device
+            d_inp = dummy_input.to(cand_dev)
+            cand.eval()
+            raw_flops = 0
+            
+            # Thử cách 1: torch.no_grad()
+            try:
+                with torch.no_grad():
+                    with FlopCounterMode(display=False) as flop_counter:
+                        _ = cand(d_inp)
+                    raw_flops = flop_counter.get_total_flops()
+            except Exception:
+                # Thử cách 2: requires_grad=True nếu module_tracker yêu cầu autograd
+                d_inp.requires_grad = True
+                with FlopCounterMode(display=False) as flop_counter:
+                    _ = cand(d_inp)
+                raw_flops = flop_counter.get_total_flops()
+
+            if raw_flops > 0:
+                gflops = round(float(raw_flops) / 1e9, 2)
+                torch_model = cand
+                print(f"[+] {model_name} FlopCounterMode đo đạc thành công: {gflops} GFLOPs (cand={type(cand).__name__})")
+                break
+        except Exception as e:
+            print(f"[!] Warning measuring with FlopCounterMode on {type(cand).__name__} for {model_name}: {e}")
+
+    # Fallback fvcore nếu FlopCounterMode chưa lấy được
+    if gflops == 0.0 and torch_model is not None:
+        try:
+            from fvcore.nn import FlopCountAnalysis
+            cand_dev = next(torch_model.parameters()).device if hasattr(torch_model, "parameters") else dummy_input.device
+            fca = FlopCountAnalysis(torch_model, dummy_input.to(cand_dev))
+            gflops = round(float(fca.total()) / 1e9, 2)
+            print(f"[+] {model_name} fvcore đo đạc thành công: {gflops} GFLOPs")
         except Exception:
             pass
 
-    # Fallback cho GFLOPs theo thông số kiến trúc chuẩn nếu thop không phân tích được attention hooks
+    # Bắt buộc phải đo thành công GFLOPs
     if gflops == 0.0:
-        if "RT-DETR" in model_name.upper():
-            # RT-DETR-L baseline tại 640x640: ~110 GFLOPs, ~32M params
-            gflops = 110.0
-            if params_m == 0.0:
-                params_m = 32.0
-        elif "RF-DETR" in model_name.upper():
-            # RF-DETR-Medium baseline tại 640x640: ~96 GFLOPs, ~31.8M params
-            gflops = 96.0
-            if params_m == 0.0:
-                params_m = 31.8
+        raise RuntimeError(
+            f"[LỖI ĐO ĐẠC] Không thể tính toán GFLOPs cho mô hình {model_name} bằng FlopCounterMode! "
+            "Trong nghiên cứu khoa học, bắt buộc phải đo thực nghiệm thành công, không dùng giá trị gán sẵn."
+        )
 
     # 4. Đo Latency (ms) và FPS (Frames Per Second) @ Batch Size = 1
     latency_ms = 0.0
     fps = 0.0
 
     try:
-        if torch_model is not None and device.startswith("cuda") and torch.cuda.is_available():
+        if torch_model is not None:
+            torch_model = torch_model.to(target_device)
             torch_model.eval()
-            with torch.no_grad():
-                # A. Warmup GPU (để GPU kích hoạt xung nhịp boost clock và khởi tạo CUDA context)
-                for _ in range(warmup_runs):
-                    try:
-                        _ = torch_model(dummy_input)
-                    except Exception:
-                        break
-                torch.cuda.synchronize()
+            d_inp = dummy_input.to(target_device)
 
-                # B. Timed Runs với CUDA Synchronize chính xác
-                timings = []
-                for _ in range(num_runs):
+            if target_device == "cuda":
+                with torch.no_grad():
+                    # A. Warmup GPU (để GPU kích hoạt xung nhịp boost clock và khởi tạo CUDA context)
+                    for _ in range(warmup_runs):
+                        _ = torch_model(d_inp)
                     torch.cuda.synchronize()
+
+                    # B. Timed Runs với CUDA Synchronize chính xác
+                    timings = []
+                    for _ in range(num_runs):
+                        torch.cuda.synchronize()
+                        t0 = time.perf_counter()
+                        try:
+                            _ = torch_model(d_inp)
+                        except Exception as ex:
+                            print(f"[!] Warning timing run: {ex}")
+                            break
+                        torch.cuda.synchronize()
+                        t1 = time.perf_counter()
+                        timings.append((t1 - t0) * 1000.0)
+
+                    if timings:
+                        latency_ms = round(float(sum(timings) / len(timings)), 2)
+                        fps = round(1000.0 / latency_ms, 1) if latency_ms > 0 else 0.0
+            else:
+                # CPU fallback
+                with torch.no_grad():
+                    for _ in range(5):
+                        _ = torch_model(d_inp)
                     t0 = time.perf_counter()
-                    try:
-                        _ = torch_model(dummy_input)
-                    except Exception:
-                        break
-                    torch.cuda.synchronize()
+                    for _ in range(20):
+                        _ = torch_model(d_inp)
                     t1 = time.perf_counter()
-                    timings.append((t1 - t0) * 1000.0)
-
-                if timings:
-                    latency_ms = round(float(sum(timings) / len(timings)), 2)
+                    latency_ms = round(((t1 - t0) / 20.0) * 1000.0, 2)
                     fps = round(1000.0 / latency_ms, 1) if latency_ms > 0 else 0.0
-        elif torch_model is not None:
-            # CPU fallback
-            torch_model.eval()
-            with torch.no_grad():
-                for _ in range(5):
-                    _ = torch_model(dummy_input)
-                t0 = time.perf_counter()
-                for _ in range(20):
-                    _ = torch_model(dummy_input)
-                t1 = time.perf_counter()
-                latency_ms = round(((t1 - t0) / 20.0) * 1000.0, 2)
-                fps = round(1000.0 / latency_ms, 1) if latency_ms > 0 else 0.0
     except Exception as e:
         print(f"[!] Warning benchmarking latency: {e}")
 
-    # Fallback thực tế nếu model object là wrapper gọi predict()
+    # Bắt buộc phải đo được Latency thực tế trên phần cứng
     if latency_ms == 0.0:
-        if "RT-DETR" in model_name.upper():
-            latency_ms = 7.5
-            fps = 133.3
-        else:
-            latency_ms = 8.2
-            fps = 121.9
+        raise RuntimeError(
+            f"[LỖI ĐO ĐẠC] Không thể đo đạc Latency/FPS cho mô hình {model_name}! "
+            "Bắt buộc phải đo thực nghiệm thành công bằng forward pass trên GPU/CPU, không dùng giá trị gán sẵn."
+        )
 
     result = {
         "model_name": model_name,

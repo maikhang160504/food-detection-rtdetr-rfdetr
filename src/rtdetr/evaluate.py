@@ -29,17 +29,32 @@ def plot_annotated_confusion_matrix(
     normalized: bool = True,
     title: str = "",
 ):
-    """Vẽ ma trận nhầm lẫn với số hiển thị rõ ràng trên từng ô (annot=True)."""
+    """Vẽ ma trận nhầm lẫn với số hiển thị rõ ràng trên từng ô (annot=True).
+    Chuẩn Machine Learning quốc tế: Trục Tung (Y) = True Label, Trục Hoành (X) = Predicted Label.
+    Ultralytics raw_cm lưu theo trục [Predicted, True], do đó cần chuyển vị matrix.T để đúng chuẩn.
+    Đồng thời tự động xuất dữ liệu ra file CSV chính xác 100%.
+    """
     plt.figure(figsize=(24, 20))
+    mat_ml = matrix.T.copy()
     if normalized:
-        norm_mat = matrix.astype(np.float32)
+        norm_mat = mat_ml.astype(np.float32)
         row_sums = norm_mat.sum(axis=1, keepdims=True)
         row_sums[row_sums == 0] = 1.0
-        mat = np.round(norm_mat / row_sums, 2)
+        mat = np.round(norm_mat / row_sums, 4)
         fmt = ".2f"
     else:
-        mat = matrix.astype(int)
+        mat = mat_ml.astype(int)
         fmt = "d"
+
+    # Xuất ra file CSV chính xác từng chữ số
+    csv_path = save_path.replace(".png", ".csv")
+    try:
+        import pandas as pd
+        df_mat = pd.DataFrame(mat, index=names, columns=names)
+        df_mat.to_csv(csv_path, index=True)
+        print(f"[+] Exported Confusion Matrix CSV: {csv_path}")
+    except Exception as e:
+        print(f"[!] Warning exporting CSV for {save_path}: {e}")
 
     sns.heatmap(
         mat,
@@ -140,12 +155,26 @@ def evaluate_rtdetr(
         plots=False,
     )
 
-    # 2. Run validation tại ngưỡng conf=0.25 với plots=True để Ultralytics kích hoạt tính toán Confusion Matrix
+    # Trích xuất ngưỡng tối ưu F1 (Optimal Confidence Threshold theo chuẩn Everingham et al., IJCV)
+    opt_conf = cm_conf
+    try:
+        from ultralytics.utils.metrics import smooth
+        f1_curve = metrics.box.f1_curve
+        px = metrics.box.px
+        f1_mean = smooth(f1_curve.mean(0), 0.1)
+        opt_idx = int(f1_mean.argmax())
+        opt_conf = float(px[opt_idx])
+        print(f"[+] [OPTIMAL OPERATING POINT] RT-DETR max-F1 threshold: opt_conf = {opt_conf:.3f} (max F1 = {float(f1_mean[opt_idx]):.4f})")
+    except Exception as e:
+        print(f"[!] Warning extracting optimal F1 conf: {e}, using {cm_conf}")
+        opt_conf = cm_conf
+
+    # 2. Run validation tại đúng ngưỡng tối ưu opt_conf để sinh Confusion Matrix đồng bộ 100% với Bảng
     cm_run_dir = os.path.join(output_dir, "cm_results")
     cm_metrics = model.val(
         data=data_yaml_path,
         split="test",
-        conf=cm_conf,
+        conf=round(opt_conf, 3),
         imgsz=imgsz,
         project=output_dir,
         name="cm_results",
@@ -169,15 +198,14 @@ def evaluate_rtdetr(
     ap50_list = metrics.box.ap50.tolist() if hasattr(metrics.box.ap50, "tolist") else list(metrics.box.ap50)
     ap_list = metrics.box.ap.tolist() if hasattr(metrics.box.ap, "tolist") else list(metrics.box.ap)
 
-    # Lấy ground truth instances per class
+    # Lấy ground truth instances per class từ cột Ground Truth của raw_cm (tương đương hàng của raw_cm.T)
     num_classes = len(class_names)
     nt_list = [0] * num_classes
 
-    # Cách 1: Lấy từ confusion matrix row sum
-    if raw_cm is not None and raw_cm.shape[0] >= num_classes:
-        row_sums = raw_cm[:num_classes, :].sum(axis=1)
-        if row_sums.sum() > 0:
-            nt_list = [int(x) for x in row_sums]
+    if raw_cm is not None and raw_cm.shape[1] >= num_classes:
+        gt_col_sums = raw_cm[:, :num_classes].sum(axis=0)
+        if gt_col_sums.sum() > 0:
+            nt_list = [int(x) for x in gt_col_sums]
 
     # Cách 2: Lấy từ COCO annotations nếu có
     if not any(nt_list):
@@ -225,7 +253,7 @@ def evaluate_rtdetr(
             "mAP@50-95": round(0.0 if str(ap_val) == "nan" else ap_val, 4),
         })
 
-    # 3. Vẽ Confusion Matrix có SỐ hiển thị rõ ràng trên từng ô (annot=True)
+    # 3. Vẽ Confusion Matrix có SỐ hiển thị rõ ràng trên từng ô (annot=True) chuẩn Y=True, X=Pred
     display_names = cnames_list + ["background"]
     cm_counts_path = os.path.join(output_dir, "confusion_matrix.png")
     cm_counts_prefixed = os.path.join(output_dir, "rtdetr_confusion_matrix.png")
@@ -234,7 +262,7 @@ def evaluate_rtdetr(
         names=display_names,
         save_path=cm_counts_path,
         normalized=False,
-        title=f"RT-DETR Confusion Matrix (Counts @ conf={cm_conf})",
+        title=f"RT-DETR Confusion Matrix (Counts @ opt_conf={opt_conf:.2f})",
     )
     shutil.copy(cm_counts_path, cm_counts_prefixed)
 
@@ -245,13 +273,33 @@ def evaluate_rtdetr(
         names=display_names,
         save_path=cm_norm_path,
         normalized=True,
-        title=f"RT-DETR Normalized Confusion Matrix (@ conf={cm_conf})",
+        title=f"RT-DETR Normalized Confusion Matrix (@ opt_conf={opt_conf:.2f})",
     )
-    shutil.copy(cm_norm_path, cm_norm_prefixed)
+    cm_counts_csv = cm_counts_path.replace(".png", ".csv")
+    cm_counts_prefixed_csv = cm_counts_prefixed.replace(".png", ".csv")
+    if os.path.exists(cm_counts_csv):
+        shutil.copy(cm_counts_csv, cm_counts_prefixed_csv)
+
+    cm_norm_csv = cm_norm_path.replace(".png", ".csv")
+    cm_norm_prefixed_csv = cm_norm_prefixed.replace(".png", ".csv")
+    if os.path.exists(cm_norm_csv):
+        shutil.copy(cm_norm_csv, cm_norm_prefixed_csv)
+
+    # Xuất file CSV chi tiết từng class (Per-class Metrics CSV)
+    per_class_csv = os.path.join(output_dir, "per_class_metrics.csv")
+    try:
+        import pandas as pd
+        pd.DataFrame(per_class_metrics).to_csv(per_class_csv, index=False)
+        print(f"[+] Exported RT-DETR per_class_metrics CSV: {per_class_csv}")
+    except Exception as e:
+        print(f"[!] Warning exporting per_class_metrics CSV: {e}")
 
     cm_paths = {
         "confusion_matrix.png": cm_counts_path,
         "confusion_matrix_normalized.png": cm_norm_path,
+        "confusion_matrix.csv": cm_counts_csv,
+        "confusion_matrix_normalized.csv": cm_norm_csv,
+        "per_class_metrics.csv": per_class_csv,
     }
 
     # 4. Đo đạc Benchmark Phần cứng (GFLOPs, Latency ms, FPS)

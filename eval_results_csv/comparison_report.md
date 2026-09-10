@@ -16,8 +16,8 @@
 |:---------------------------|:--------------|:-------------|:----------------------------------------|
 | Parameters (Số tham số)    | 32.87 M       | 33.6 M       | Cân xứng tương đương (~33M)             |
 | GFLOPs (tại 640x640)       | 109.32 GFLOPs | 99.77 GFLOPs | RF-DETR tối ưu hơn về phép tính (-8.7%) |
-| Độ trễ Latency (@ Batch=1) | 38.85 ms      | 24.17 ms     | Đo bằng Warmup + CUDA Sync trên A100    |
-| Tốc độ Throughput (FPS)    | 25.7 FPS      | 41.4 FPS     | Khả năng xử lý thời gian thực           |
+| Độ trễ Latency (@ Batch=1) | 39.57 ms      | 28.97 ms     | Đo bằng Warmup + CUDA Sync trên A100    |
+| Tốc độ Throughput (FPS)    | 25.3 FPS      | 34.5 FPS     | Khả năng xử lý thời gian thực           |
 
 ## 3. Trực Quan Hóa Ma Trận Nhầm Lẫn (Confusion Matrix)
 

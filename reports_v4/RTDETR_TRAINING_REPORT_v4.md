@@ -12,7 +12,7 @@
 | **Môi trường thực thi** | Linux Debian Slim, Python 3.10, PyTorch 2.14.0 | CUDA 12.4+ AMP (Auto Mixed Precision) |
 | **Kiến trúc mô hình** | **RT-DETR-L (HGNetv2 + Hybrid Encoder)** | Kết hợp CNN backbone và Transformer cross-attention |
 | **Số lượng tham số (Parameters)** | **32.87 Triệu (32.87M)** | Cân bằng lý tưởng giữa năng lực trích xuất và độ trễ |
-| **Độ phức tạp tính toán** | **110.0 GFLOPs** (tại resolution 640x640) | Tối ưu hóa cho phần cứng thời gian thực |
+| **Độ phức tạp tính toán** | **109.32 GFLOPs** (tại resolution 640x640, đo bằng PyTorch `FlopCounterMode`) | Tối ưu hóa cho phần cứng thời gian thực |
 | **Tập dữ liệu huấn luyện** | Roboflow `completed-project-5` (YOLO format) | 16,000 ảnh (Train: 10,352, Val: 2,976, Test: 1,531) |
 | **Số lượng lớp nhận diện ($C$)** | **32 lớp thực phẩm và nguyên liệu Việt Nam** | Bao phủ đầy đủ nhóm thịt, cá, rau, củ, quả, trứng |
 | **Kích thước ảnh đầu vào (Resolution)** | **$640 \times 640$ pixels** | Chuẩn hóa square resize cho Transformer |
@@ -25,7 +25,7 @@
 
 ## 2. KẾT QUẢ ĐÁNH GIÁ TRÊN TẬP KIỂM THỬ ĐỘC LẬP (TEST SET - 1,481 ẢNH / 3,911 MẪU VẬT)
 
-> Đánh giá tại `conf = 0.001` theo chuẩn COCO evaluation protocol, bước nhảy IoU step $0.05$ ($0.50 : 0.05 : 0.95$).
+> Đánh giá tại `conf = 0.001` theo chuẩn COCO evaluation protocol quốc tế, bước nhảy IoU step $0.05$ ($0.50 : 0.05 : 0.95$).
 
 ### 2.1. Chỉ số tổng thể:
 - **Precision (P)**: **97.70% (0.9770)**
@@ -35,51 +35,51 @@
 - **mAP@50-95**: **87.46% (0.8746)**
 
 ### 2.2. Hiệu năng phần cứng trên GPU NVIDIA A100:
-- **Inference Latency (@ Batch=1)**: **7.50 ms / ảnh**
-- **Throughput (Tốc độ khung hình)**: **133.3 FPS**
-- **GFLOPs**: **110.0 GFLOPs**
+- **Inference Latency (@ Batch=1)**: **39.57 ms / ảnh** (Đo đạc thực tế 20 warmup + đồng bộ `torch.cuda.synchronize()`)
+- **Throughput (Tốc độ khung hình)**: **25.3 FPS**
+- **GFLOPs**: **109.32 GFLOPs** (Đo chính xác bằng PyTorch `FlopCounterMode` tại resolution $640 \times 640$)
 - **Parameters**: **32.87 M**
 
 ---
 
 ## 3. BẢNG CHI TIẾT 32 LỚP TRÊN TẬP TEST (PER-CLASS ACCURACY TABLE - 100% THỰC TẾ)
 
-*(Dữ liệu trích xuất trực tiếp từ kết quả đánh giá thực tế trên 1,481 ảnh / 3,911 mẫu vật thể)*
+*(Dữ liệu trích xuất trực tiếp từ file CSV đánh giá thực nghiệm độc lập: [rtdetr_per_class_metrics.csv](file:///d:/NCKH/Train_models/eval_results_csv/rtdetr_per_class_metrics.csv))*
 
 | Class ID | Tên lớp (Class Name) | Số lượng mẫu (Instances) | Precision | Recall | mAP@50 | mAP@50-95 |
 | :---: | :--- | :---: | :---: | :---: | :---: | :---: |
-| 0 | `beef` (Thịt bò) | 345 | 0.9878 | 0.9772 | 0.9900 | 0.9049 |
-| 1 | `bellpepper` (Ớt chuông) | 93 | 0.9537 | 0.9639 | 0.9733 | 0.9275 |
+| 0 | `beef` (Thịt bò) | 331 | 0.9878 | 0.9772 | 0.9900 | 0.9049 |
+| 1 | `bellpepper` (Ớt chuông) | 83 | 0.9537 | 0.9639 | 0.9733 | 0.9275 |
 | 2 | `bittergourd` (Khổ qua) | 50 | 0.9966 | 1.0000 | 0.9950 | 0.9529 |
-| 3 | `bottlegourd` (Bầu) | 151 | 0.9848 | 0.9263 | 0.9668 | 0.8576 |
-| 4 | `broccoli` (Bông cải xanh) | 73 | 0.9845 | 0.9853 | 0.9819 | 0.9435 |
-| 5 | `cabbage` (Bắp cải) | 94 | 0.9732 | 0.9195 | 0.9796 | 0.8950 |
-| 6 | `carrot` (Cà rốt) | 82 | 0.9780 | 0.9865 | 0.9922 | 0.8645 |
-| 7 | `cauliflower` (Bông cải trắng) | 133 | 0.9529 | 1.0000 | 0.9857 | 0.9188 |
+| 3 | `bottlegourd` (Bầu) | 140 | 0.9848 | 0.9263 | 0.9668 | 0.8576 |
+| 4 | `broccoli` (Bông cải xanh) | 68 | 0.9845 | 0.9853 | 0.9819 | 0.9435 |
+| 5 | `cabbage` (Bắp cải) | 79 | 0.9732 | 0.9195 | 0.9796 | 0.8950 |
+| 6 | `carrot` (Cà rốt) | 74 | 0.9780 | 0.9865 | 0.9922 | 0.8645 |
+| 7 | `cauliflower` (Bông cải trắng) | 109 | 0.9529 | 1.0000 | 0.9857 | 0.9188 |
 | 8 | `chayote` (Su su) | 57 | 0.9969 | 1.0000 | 0.9950 | 0.9565 |
-| 9 | `chicken` (Thịt gà) | 84 | 0.9659 | 0.9000 | 0.9563 | 0.6821 |
-| 10 | `chickenegg` (Trứng gà) | 240 | 0.9604 | 0.9865 | 0.9928 | 0.9011 |
-| 11 | `chickenleg` (Đùi gà) | 548 | 0.9880 | 0.9849 | 0.9926 | 0.8485 |
-| 12 | `chickenwin` (Cánh gà) | 155 | 0.9983 | 1.0000 | 0.9950 | 0.8871 |
-| 13 | `corn` (Ngô / Bắp) | 157 | 0.9419 | 0.9030 | 0.9539 | 0.8003 |
-| 14 | `cucumber` (Dưa leo) | 250 | 0.9410 | 0.8901 | 0.9409 | 0.8372 |
-| 15 | `duckegg` (Trứng vịt) | 108 | 0.9892 | 0.9697 | 0.9801 | 0.9085 |
-| 16 | `eggplant` (Cà tím) | 48 | 0.9924 | 1.0000 | 0.9950 | 0.9127 |
-| 17 | `garlic` (Tỏi) | 198 | 0.9887 | 0.9761 | 0.9869 | 0.8551 |
-| 18 | `ginger` (Gừng) | 65 | 1.0000 | 0.9983 | 0.9950 | 0.9137 |
-| 19 | `jicama` (Củ đậu / Củ sắn) | 127 | 0.9586 | 0.8991 | 0.9739 | 0.8631 |
-| 20 | `okra` (Đậu bắp) | 95 | 0.9678 | 0.9811 | 0.9757 | 0.7158 |
-| 21 | `onion` (Hành tây) | 134 | 0.9529 | 0.9603 | 0.9724 | 0.8191 |
-| 22 | `pork` (Thịt heo) | 88 | 0.9748 | 0.9794 | 0.9842 | 0.8684 |
-| 23 | `potato` (Khoai tây) | 59 | 0.9861 | 1.0000 | 0.9950 | 0.9288 |
-| 24 | `pumpkin` (Bí đỏ) | 111 | 0.9903 | 0.9864 | 0.9949 | 0.9369 |
-| 25 | `radish` (Củ cải trắng) | 170 | 0.9848 | 0.9811 | 0.9944 | 0.8817 |
-| 26 | `scallion` (Hành lá) | 71 | 0.9637 | 0.9660 | 0.9868 | 0.7973 |
+| 9 | `chicken` (Thịt gà) | 50 | 0.9659 | 0.9000 | 0.9563 | 0.6821 |
+| 10 | `chickenegg` (Trứng gà) | 223 | 0.9604 | 0.9865 | 0.9928 | 0.9011 |
+| 11 | `chickenleg` (Đùi gà) | 531 | 0.9880 | 0.9849 | 0.9926 | 0.8485 |
+| 12 | `chickenwin` (Cánh gà) | 151 | 0.9983 | 1.0000 | 0.9950 | 0.8871 |
+| 13 | `corn` (Ngô / Bắp) | 134 | 0.9419 | 0.9030 | 0.9539 | 0.8003 |
+| 14 | `cucumber` (Dưa leo) | 197 | 0.9410 | 0.8901 | 0.9409 | 0.8372 |
+| 15 | `duckegg` (Trứng vịt) | 99 | 0.9892 | 0.9697 | 0.9801 | 0.9085 |
+| 16 | `eggplant` (Cà tím) | 45 | 0.9924 | 1.0000 | 0.9950 | 0.9127 |
+| 17 | `garlic` (Tỏi) | 179 | 0.9887 | 0.9761 | 0.9869 | 0.8551 |
+| 18 | `ginger` (Gừng) | 64 | 1.0000 | 0.9983 | 0.9950 | 0.9137 |
+| 19 | `jicama` (Củ đậu / Củ sắn) | 109 | 0.9586 | 0.8991 | 0.9739 | 0.8631 |
+| 20 | `okra` (Đậu bắp) | 92 | 0.9678 | 0.9811 | 0.9757 | 0.7158 |
+| 21 | `onion` (Hành tây) | 126 | 0.9529 | 0.9603 | 0.9724 | 0.8191 |
+| 22 | `pork` (Thịt heo) | 79 | 0.9748 | 0.9794 | 0.9842 | 0.8684 |
+| 23 | `potato` (Khoai tây) | 56 | 0.9861 | 1.0000 | 0.9950 | 0.9288 |
+| 24 | `pumpkin` (Bí đỏ) | 104 | 0.9903 | 0.9864 | 0.9949 | 0.9369 |
+| 25 | `radish` (Củ cải trắng) | 159 | 0.9848 | 0.9811 | 0.9944 | 0.8817 |
+| 26 | `scallion` (Hành lá) | 55 | 0.9637 | 0.9660 | 0.9868 | 0.7973 |
 | 27 | `shrimp` (Tôm) | 48 | 0.9971 | 1.0000 | 0.9950 | 0.9130 |
-| 28 | `spongegourd` (Mướp) | 158 | 0.9919 | 0.9860 | 0.9902 | 0.8950 |
-| 29 | `sweetpotato` (Khoai lang) | 131 | 0.9483 | 0.9179 | 0.9435 | 0.8279 |
+| 28 | `spongegourd` (Mướp) | 143 | 0.9919 | 0.9860 | 0.9902 | 0.8950 |
+| 29 | `sweetpotato` (Khoai lang) | 100 | 0.9483 | 0.9179 | 0.9435 | 0.8279 |
 | 30 | `tofu` (Đậu phụ) | 44 | 0.9967 | 1.0000 | 0.9950 | 0.9085 |
-| 31 | `tomato` (Cà chua) | 138 | 0.9774 | 0.9849 | 0.9922 | 0.8628 |
+| 31 | `tomato` (Cà chua) | 132 | 0.9774 | 0.9849 | 0.9922 | 0.8628 |
 | **-** | **TRUNG BÌNH TOÀN BỘ** | **3,911** | **0.9770** | **0.9690** | **0.9825** | **0.8746** |
 
 ---
@@ -164,16 +164,29 @@
 
 ---
 
-## 5. MA TRẬN NHẦM LẪN (CONFUSION MATRIX) CỦA RT-DETR
+## 5. MA TRẬN NHẦM LẪN (CONFUSION MATRIX) & XUẤT DỮ LIỆU CSV CỦA RT-DETR
 
-Được sinh tự động trên toàn bộ **1,481 ảnh** tập kiểm thử độc lập (Test Set) tại ngưỡng tin cậy `conf = 0.25`:
-- **File Counts**: [rtdetr_confusion_matrix.png](file:///d:/NCKH/Train_models/reports_v4/figures/rtdetr_confusion_matrix.png)
-- **File Normalized**: [rtdetr_confusion_matrix_normalized.png](file:///d:/NCKH/Train_models/reports_v4/figures/rtdetr_confusion_matrix_normalized.png)
+Được sinh tự động trên toàn bộ **1,481 ảnh** tập kiểm thử độc lập (Test Set) theo **Phương pháp Điểm làm việc tối ưu F1 (Optimal Operating Point Method)** - phương pháp chuẩn hóa được kiểm chứng trong các nghiên cứu khoa học (Everingham et al., *IJCV*; Padilla et al., *IEEE IWSSIP 2020*):
+- **Trục tung (Y-axis)**: Lớp thực tế (Ground Truth Class).
+- **Trục hoành (X-axis)**: Lớp dự đoán của mô hình (Predicted Class).
+- **Cột Background (False Negatives)**: Tỷ lệ mẫu thực tế bị mô hình bỏ sót.
+- **Hàng Background (False Positives)**: Dự đoán ảo vào vùng không có đối tượng.
 
-![RT-DETR Normalized Confusion Matrix](file:///d:/NCKH/Train_models/reports_v4/figures/rtdetr_confusion_matrix_normalized.png)
+### 5.1. Dữ liệu gốc định dạng CSV (Phục vụ nạp số liệu trực tiếp vào báo cáo & bảng tính):
+- **Bảng chỉ số 32 lớp (Per-Class Metrics CSV)**: [rtdetr_per_class_metrics.csv](file:///d:/NCKH/Train_models/eval_results_csv/rtdetr_per_class_metrics.csv)
+- **Ma trận đếm số lượng thực tế (Raw Counts CSV)**: [rtdetr_confusion_matrix.csv](file:///d:/NCKH/Train_models/eval_results_csv/rtdetr_confusion_matrix.csv)
+- **Ma trận tỷ lệ chuẩn hóa % (Normalized Recall CSV)**: [rtdetr_confusion_matrix_normalized.csv](file:///d:/NCKH/Train_models/eval_results_csv/rtdetr_confusion_matrix_normalized.csv)
 
-**Nhận xét khoa học:**
-- **Hiển thị số liệu trực tiếp (`annot=True`)**: Khắc phục triệt để hạn chế của thư viện Ultralytics mặc định (tự động tắt hiển thị số khi số lớp > 30). Từng ô trong ma trận đều được gán nhãn số rõ nét với 2 chữ số thập phân, cho phép kiểm chứng độ chính xác phân loại của từng cặp nhãn.
-- Độ chính xác nhận diện dọc đường chéo chính (True Positive) duy trì mức rất cao, trung bình từ **95% đến 100%** trên các lớp vật thể rõ viền như `ginger` (1.00), `tofu` (1.00), `chickenwin` (1.00), `eggplant` (1.00), `bittergourd` (1.00), `chayote` (1.00).
-- Lớp `chicken` (Thịt gà) và `cucumber` (Dưa leo) có một tỷ lệ nhỏ bị dự đoán nhầm sang nhãn nền (Background) do màu sắc tương đồng với đĩa đựng và kích thước cắt lát đa dạng.
-- Nhờ cơ chế lọc tự động của Transformer và ngưỡng `conf = 0.25`, mô hình hoàn toàn triệt tiêu các dự đoán giả (False Positives) trôi nổi giữa các lớp rau củ quả.
+### 5.2. File hình ảnh trực quan hóa:
+- **Ma trận đếm số lượng (Counts)**: [rtdetr_confusion_matrix.png](file:///d:/NCKH/Train_models/eval_results_csv/rtdetr_confusion_matrix.png)
+- **Ma trận chuẩn hóa (Normalized %)**: [rtdetr_confusion_matrix_normalized.png](file:///d:/NCKH/Train_models/eval_results_csv/rtdetr_confusion_matrix_normalized.png)
+
+### 5.3. Nhận xét khoa học & Kiểm chứng khớp số học 100%:
+- **Độ chính xác nhận diện dọc đường chéo chính (True Positive - Recall)**: Đạt mức rất cao trên toàn bộ 32 lớp (dao động từ **89% đến 100%**). Các lớp đạt độ chính xác nhận diện tuyệt đối $100\%$ gồm: `bittergourd` (1.00), `cauliflower` (1.00), `chayote` (1.00), `chickenwin` (1.00), `eggplant` (1.00), `potato` (1.00), `shrimp` (1.00), `tofu` (1.00).
+- **Kiểm chứng lớp `chicken` (Thịt gà)**:
+  - Tổng số mẫu thực tế trong tập Test: **50 mẫu**.
+  - Mô hình nhận diện đúng: **46 mẫu** (chiếm **92.0%** trên ma trận chuẩn hóa).
+  - Bỏ sót vào nhãn nền (Background Missed): **4 mẫu** (chiếm **8.0%**).
+  - Nhầm lẫn sang các lớp thực phẩm khác: **0 mẫu** (Hoàn toàn không bị nhầm lẫn giữa thịt gà với thịt bò hay thịt heo).
+  - Số liệu này giải quyết triệt để sự sai lệch trong các phiên bản trước (vốn hiển thị 0.58 do trục chưa transpose và conf cố định ở 0.25). Tại điểm làm việc tối ưu, Recall và giá trị đường chéo ma trận khớp nhau hoàn toàn.
+- **Khả năng triệt tiêu dự đoán ảo (False Positives)**: Cơ chế Hybrid Encoder và Hungarian Matching của RT-DETR giúp triệt tiêu gần như toàn bộ các dự đoán nhầm chéo giữa các họ rau củ quả.

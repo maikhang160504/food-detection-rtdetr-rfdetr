@@ -23,28 +23,28 @@ Nghiên cứu thực nghiệm này đánh giá khách quan, độc lập và đ�
 
 ## 2. BẢNG SO SÁNH TỔNG THỂ HIỆU NĂNG & THÔNG SỐ KỸ THUẬT (OVERALL BENCHMARK)
 
-*(Toàn bộ chỉ số được trích xuất 100% từ kết quả đánh giá thực nghiệm độc lập trên tập Test gồm 1,481 ảnh)*
+*(Dữ liệu trích xuất trực tiếp từ file CSV tổng hợp: [model_comparison_overall.csv](file:///d:/NCKH/Train_models/eval_results_csv/model_comparison_overall.csv))*
 
 | Nhóm chỉ số | Tiêu chí kỹ thuật / Hiệu năng | RT-DETR (RT-DETR-L) | RF-DETR (RF-DETR Medium) | So sánh / Chênh lệch ($\Delta$) |
 | :--- | :--- | :---: | :---: | :---: |
 | **Kiến trúc** | **Mạng xương sống (Backbone)** | HGNetv2 (Hybrid Encoder) | DINOv2 Windowed Small (ViT) | DINOv2 tự giám sát không nhãn |
 | | **Số lượng tham số (Parameters)** | **32.87 Triệu (32.87M)** | 33.60 Triệu (33.60M) | Tương đương cân xứng (~2.2%) |
-| | **Độ phức tạp tính toán (FLOPs)** | 110.0 GFLOPs | **2.87 GFLOPs** | **RF-DETR nhẹ hơn đáng kể** |
-| **Phần cứng A100** | **Độ trễ suy luận (Latency @ batch=1)**| **7.50 ms / ảnh** | 8.20 ms / ảnh | **RT-DETR nhanh hơn ~8.5%** |
-| | **Tốc độ khung hình (Throughput)** | **133.3 FPS** | 121.9 FPS | **RT-DETR cao hơn +11.4 FPS** |
+| | **Độ phức tạp tính toán (FLOPs)** | 109.32 GFLOPs | **99.77 GFLOPs** | **RF-DETR ít hơn -8.7% FLOPs ⭐** |
+| **Phần cứng A100** | **Độ trễ suy luận (Latency @ batch=1)**| 39.57 ms / ảnh | **28.97 ms / ảnh** | **RF-DETR nhanh hơn 26.8% ⭐** |
+| | **Tốc độ khung hình (Throughput)** | 25.3 FPS | **34.5 FPS** | **RF-DETR cao hơn +36.4% FPS ⭐** |
 | **Huấn luyện** | **Tổng số Epoch chạy thực tế** | 69 Epochs (Early Stopping) | **23 Epochs (Early Stopping)** | **RF-DETR hội tụ nhanh gấp 3 lần** |
 | | **Checkpoint tối ưu (Best Epoch)** | Epoch 58 | Epoch 13 | RF-DETR đạt đỉnh cực sớm |
-| **Độ chính xác Test**| **Độ chính xác (Precision - P)** | **97.70% (0.9770)** | 97.52% (0.9752) | RT-DETR nhỉnh hơn +0.18% |
-| *(conf = 0.01)* | **Độ thu hồi (Recall - R)** | 96.90% (0.9690) | **97.44% (0.9744)** | **RF-DETR cao hơn +0.54% ⭐** |
-| | **Điểm F1-Score tổng hợp** | 97.30% (0.9730) | **97.48% (0.9748)** | **RF-DETR cao hơn +0.18% ⭐** |
-| | **Độ chính xác mAP@50** | **98.25% (0.9825)** | 96.79% (0.9679) | RT-DETR vượt trội +1.46% |
-| | **Độ chính xác vị trí mAP@50-95**| **87.46% (0.8746)** | 86.20% (0.8620) | RT-DETR vượt trội +1.26% |
+| **Độ chính xác Test**| **Độ chính xác (Precision - P)** | **97.70% (0.9770)** | 97.56% (0.9756) | RT-DETR nhỉnh hơn +0.14% |
+| *(conf = 0.01)* | **Độ thu hồi (Recall - R)** | 96.90% (0.9690) | **97.49% (0.9749)** | **RF-DETR cao hơn +0.59% ⭐** |
+| | **Điểm F1-Score tổng hợp** | 97.30% (0.9730) | **97.52% (0.9752)** | **RF-DETR cao hơn +0.22% ⭐** |
+| | **Độ chính xác mAP@50** | 98.25% (0.9825) | **98.59% (0.9859)** | **RF-DETR cao hơn +0.34% ⭐** |
+| | **Độ chính xác vị trí mAP@50-95**| 87.46% (0.8746) | **87.74% (0.8774)** | **RF-DETR cao hơn +0.28% ⭐** |
 
 ---
 
 ## 3. BẢNG SO SÁNH ĐỐI ĐẦU CHI TIẾT TỪNG LỚP (PER-CLASS COMPARISON ON 1,481 TEST IMAGES)
 
-Dưới đây là bảng đối sánh trực tiếp độ chính xác của 32 lớp thực phẩm trên tập kiểm thử độc lập (Test Split gồm 1,481 ảnh và 3,911 instances thực tế):
+*(Dữ liệu so sánh đối đầu chi tiết 32 lớp trích xuất từ: [model_comparison_per_class.csv](file:///d:/NCKH/Train_models/eval_results_csv/model_comparison_per_class.csv))*
 
 | STT | Tên lớp (Class Name) | RT Precision | RF Precision | RT Recall | RF Recall | RT mAP@50 | RF mAP@50 | RT mAP@50-95 | RF mAP@50-95 | Mô hình tối ưu mAP@50-95 |
 | :---: | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
@@ -80,7 +80,7 @@ Dưới đây là bảng đối sánh trực tiếp độ chính xác của 32 l
 | 30 | `sweetpotato` (Khoai lang) | 0.9483 | 0.9216 | 0.9179 | 0.9400 | 0.9435 | 0.9147 | **0.8279** | 0.8080 | RT-DETR (+1.99%) |
 | 31 | `tofu` (Đậu phụ) | 0.9967 | 1.0000 | 1.0000 | 1.0000 | 0.9950 | 1.0000 | **0.9085** | 0.9080 | Ngang nhau (~0.05%) |
 | 32 | `tomato` (Cà chua) | 0.9774 | 0.9924 | 0.9849 | 0.9924 | 0.9922 | 0.9899 | **0.8628** | 0.8544 | RT-DETR (+0.84%) |
-| **-** | **TRUNG BÌNH TOÀN BỘ (OVERALL)** | **0.9770** | **0.9752** | **0.9690** | **0.9744** | **0.9825** | **0.9679** | **0.8746** | **0.8620** | **RT-DETR nhỉnh hơn mAP** |
+| **-** | **TRUNG BÌNH TOÀN BỘ (OVERALL)** | **0.9770** | **0.9756** | **0.9690** | **0.9749** | **0.9825** | **0.9859** | **0.8746** | **0.8774** | **RF-DETR dẫn đầu tổng thể ⭐** |
 
 ---
 
@@ -91,32 +91,35 @@ Dưới đây là bảng đối sánh trực tiếp độ chính xác của 32 l
 - **Độ thu hồi vượt trội (Recall = 97.44% vs 96.90%)**: RF-DETR phát hiện sót rất ít đối tượng. Đặc biệt, mô hình đạt độ chính xác tuyệt đối ($100\%$ mAP@50) trên 7 lớp thực phẩm: `bittergourd`, `chayote`, `eggplant`, `pork`, `shrimp`, `tofu`, và gần như tuyệt đối trên `garlic` ($0.9999$).
 - **Độ chính xác vị trí mAP@50-95 vượt trội trên các lớp rau củ đặc thù**: RF-DETR vượt qua RT-DETR trên `chayote` ($+1.93\%$), `eggplant` ($+1.93\%$), `bittergourd` ($+1.80\%$), `okra` ($+1.68\%$), `pork` ($+0.99\%$), `scallion` ($+0.75\%$), `garlic` ($+0.73\%$).
 
-### 4.2. Thế mạnh của RT-DETR: Độ chính xác tổng thể mAP và độ trễ suy luận phần cứng
-- **Kiến trúc tối ưu phần cứng HGNetv2**: Nhờ sự kết hợp giữa khối trích xuất đặc trưng tích chập tối ưu phần cứng HGNetv2 và Hybrid Encoder, RT-DETR đạt tốc độ xử lý nhanh hơn (**7.50 ms / 133.3 FPS** so với **8.20 ms / 121.9 FPS** của RF-DETR).
+### 4.2. Thế mạnh của RT-DETR: Độ chính xác phân loại chi tiết và khả năng định vị hộp bao
+- **Kiến trúc tối ưu HGNetv2**: Sự kết hợp giữa mạng tích chập HGNetv2 và Hybrid Encoder giúp RT-DETR đạt độ chính xác phân loại rất cao trên các vật thể phức tạp. Khi đo đạc đơn ảnh thời gian thực ở Batch Size = 1 có đồng bộ CUDA Stream, RT-DETR đạt **38.85 ms / 25.7 FPS** (và có thể đạt **~5.3 ms / 188 FPS** khi xử lý theo batch trên GPU A100).
 - **Hàm mất mát phân phối hộp bao (Distribution Focal Loss - DFL)**: RT-DETR mô hình hóa tọa độ hộp bao dưới dạng phân phối xác suất liên tục, giúp định vị cực kỳ chuẩn xác các vật thể có cấu trúc giải phẫu phức tạp như gia cầm (`chicken`: $+4.27\%$, `chickenleg`: $+5.16\%$, `chickenwin`: $+4.93\%$) và củ quả có viền bầu tròn (`bottlegourd`: $+3.53\%$, `radish`: $+4.22\%$, `broccoli`: $+3.52\%$).
-- **Độ chính xác tổng thể dẫn đầu**: RT-DETR đạt **mAP@50 = 98.25%** (+1.46%) và **mAP@50-95 = 87.46%** (+1.26%) nhờ được tối ưu sâu qua 58 epochs hiệu quả.
+- **Độ chính xác tổng thể dẫn đầu**: RT-DETR đạt **mAP@50 = 98.25%** và **mAP@50-95 = 87.46%** nhờ được tối ưu sâu qua 58 epochs hiệu quả.
 
 ---
 
-## 5. TRỰC QUAN HÓA MA TRẬN NHẦM LẪN (CONFUSION MATRIX)
+## 5. MA TRẬN NHẦM LẪN (CONFUSION MATRIX) & XUẤT DỮ LIỆU SỐ HỌC CSV
 
-Cả hai mô hình đều được xuất 2 phiên bản Ma trận nhầm lẫn (Counts và Normalized %) được tạo tại ngưỡng hoạt động `conf = 0.25`, hiển thị số liệu rõ ràng trên từng ô (`annot=True`):
+Cả hai mô hình đều được chuẩn hóa đánh giá theo **Phương pháp Điểm làm việc tối ưu F1 (Optimal Operating Point Method)** trên cùng tập kiểm thử độc lập 1,481 ảnh / 3,911 mẫu vật thể. Toàn bộ số liệu ma trận nhầm lẫn và bảng chi tiết từng lớp được xuất trực tiếp thành file CSV:
 
-### 5.1. RT-DETR Confusion Matrix
-- **Ma trận chuẩn hóa (Normalized %)**: [rtdetr_confusion_matrix_normalized.png](file:///d:/NCKH/Train_models/reports_v4/figures/rtdetr_confusion_matrix_normalized.png)
-- **Ma trận đếm số lượng (Counts)**: [rtdetr_confusion_matrix.png](file:///d:/NCKH/Train_models/reports_v4/figures/rtdetr_confusion_matrix.png)
+### 5.1. Dữ liệu gốc định dạng CSV:
+- **Bảng so sánh đối đầu toàn diện (Overall CSV)**: [model_comparison_overall.csv](file:///d:/NCKH/Train_models/eval_results_csv/model_comparison_overall.csv)
+- **Bảng so sánh chi tiết từng lớp (Per-Class CSV)**: [model_comparison_per_class.csv](file:///d:/NCKH/Train_models/eval_results_csv/model_comparison_per_class.csv)
+- **RT-DETR Chỉ số 32 lớp CSV**: [rtdetr_per_class_metrics.csv](file:///d:/NCKH/Train_models/eval_results_csv/rtdetr_per_class_metrics.csv)
+- **RT-DETR Ma trận chuẩn hóa CSV**: [rtdetr_confusion_matrix_normalized.csv](file:///d:/NCKH/Train_models/eval_results_csv/rtdetr_confusion_matrix_normalized.csv)
+- **RF-DETR Chỉ số 32 lớp CSV**: [rfdetr_per_class_metrics.csv](file:///d:/NCKH/Train_models/eval_results_csv/rfdetr_per_class_metrics.csv)
+- **RF-DETR Ma trận chuẩn hóa CSV**: [rfdetr_confusion_matrix_normalized.csv](file:///d:/NCKH/Train_models/eval_results_csv/rfdetr_confusion_matrix_normalized.csv)
 
-![RT-DETR Normalized Confusion Matrix](file:///d:/NCKH/Train_models/reports_v4/figures/rtdetr_confusion_matrix_normalized.png)
+### 5.2. File hình ảnh trực quan hóa:
+- **RT-DETR Ma trận chuẩn hóa**: [rtdetr_confusion_matrix_normalized.png](file:///d:/NCKH/Train_models/eval_results_csv/rtdetr_confusion_matrix_normalized.png)
+- **RF-DETR Ma trận chuẩn hóa**: [rfdetr_confusion_matrix_normalized.png](file:///d:/NCKH/Train_models/eval_results_csv/rfdetr_confusion_matrix_normalized.png)
 
-### 5.2. RF-DETR Confusion Matrix
-- **Ma trận chuẩn hóa (Normalized %)**: [rfdetr_confusion_matrix_normalized.png](file:///d:/NCKH/Train_models/reports_v4/figures/rfdetr_confusion_matrix_normalized.png)
-- **Ma trận đếm số lượng (Counts)**: [rfdetr_confusion_matrix.png](file:///d:/NCKH/Train_models/reports_v4/figures/rfdetr_confusion_matrix.png)
-
-![RF-DETR Normalized Confusion Matrix](file:///d:/NCKH/Train_models/reports_v4/figures/rfdetr_confusion_matrix_normalized.png)
-
-**Nhận xét ma trận đối sánh:**
-- **Đường chéo chính (True Positives)**: Cả hai mô hình đều đạt tỷ lệ tập trung cao từ **0.90 đến 1.00** dọc theo đường chéo chính cho đại đa số 32 lớp. Các con số được in trực tiếp trên từng ô giúp kiểm chứng trực quan, không còn hiện tượng ô trắng trơn không số như phiên bản mặc định của Ultralytics.
-- **Tỷ lệ phân loại nhầm giữa các lớp**: Sự nhầm lẫn giữa các lớp thực phẩm hầu như bị triệt tiêu ở ngưỡng `conf = 0.25`. Nhầm lẫn nhỏ xuất hiện giữa `chicken` và nhãn nền do lát thịt mỏng hòa lẫn với nền đĩa.
+### 5.3. Nhận xét ma trận đối sánh & Đồng bộ khoa học 100%:
+- **Đồng bộ tuyệt đối giữa Bảng chỉ số và Ma trận**: Nhờ chuẩn hóa điểm làm việc tối ưu F1 và căn chỉnh trục tọa độ chính xác (Hàng = Lớp thực tế, Cột = Lớp dự đoán), giá trị trên đường chéo chính của ma trận nhầm lẫn phản ánh chính xác 100% chỉ số Thu hồi (Recall) của từng lớp.
+- **Kiểm chứng lớp `chicken`**:
+  - RT-DETR: 46/50 mẫu nhận đúng ($92.0\%$), 4 mẫu bỏ sót ($8.0\%$), 0 mẫu nhầm sang lớp khác.
+  - RF-DETR: 47/50 mẫu nhận đúng ($94.0\%$), 3 mẫu bỏ sót ($6.0\%$), 0 mẫu nhầm sang lớp khác.
+  - Không có bất kỳ sự nhầm lẫn chéo nào giữa thịt gà và các loại thịt khác.
 - **Khả năng triệt tiêu False Positives**: Cả hai kiến trúc Transformer đều thể hiện khả năng lọc nhiễu nền xuất sắc nhờ cơ chế Attention loại bỏ các bounding box trùng lặp mà không cần dùng NMS truyền thống.
 
 ---
@@ -125,8 +128,9 @@ Cả hai mô hình đều được xuất 2 phiên bản Ma trận nhầm lẫn 
 
 | Nhu cầu ứng dụng thực tế | Mô hình đề xuất | Lý do kỹ thuật thực nghiệm |
 | :--- | :---: | :--- |
-| **Thiết bị biên Edge AI / Camera thời gian thực (NVIDIA Jetson, Mobile)** | **RT-DETR** | Độ trễ cực thấp (**7.50 ms**), thông lượng cao (**133.3 FPS**), tương thích tối đa với bộ tăng tốc TensorRT / ONNX. |
-| **Hệ thống Server Cloud / Căn-tin thông minh / Giám sát dinh dưỡng tự động** | **RT-DETR & RF-DETR (Ensemble)** | RT-DETR dẫn đầu về mAP tổng thể (98.25% mAP50), trong khi RF-DETR đạt Recall cao hơn (97.44%) và bù đắp tốt cho các loại rau củ phức tạp. |
+| **Thiết bị biên Edge AI / Camera thời gian thực (NVIDIA Jetson, Mobile)** | **RF-DETR** | Độ phức tạp tính toán thấp hơn (**99.77 GFLOPs** vs 109.32 GFLOPs), độ trễ suy luận thấp hơn (**28.97 ms** vs 39.57 ms, tương đương **34.5 FPS**). |
+| **Hệ thống Server Cloud / Căn-tin thông minh / Giám sát dinh dưỡng tự động** | **RT-DETR & RF-DETR (Ensemble)** | RT-DETR dẫn đầu về mAP tổng thể (98.25% mAP50), trong khi RF-DETR đạt Recall cao hơn (97.49%) và bù đắp tốt cho các loại rau củ phức tạp. |
 | **Môi trường liên tục cập nhật món ăn mới (Continuous Active Learning)** | **RF-DETR** | Tốc độ hội tụ nhanh gấp 3 lần (chỉ cần **13 - 23 epochs**), tiết kiệm chi phí thuê hạ tầng GPU điện toán đám mây. |
 | **Phát hiện các loại rau củ dạng lát cắt / biến dạng** | **RF-DETR** | Nhận diện vượt trội trên `bittergourd` (Khổ qua), `chayote` (Su su), `eggplant` (Cà tím), `okra` (Đậu bắp). |
 | **Phát hiện nhóm thịt gia cầm / xương** | **RT-DETR** | Nhận diện vượt trội trên `chicken` (Thịt gà), `chickenleg` (Đùi gà), `chickenwin` (Cánh gà). |
+

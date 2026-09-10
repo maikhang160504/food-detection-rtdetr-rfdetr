@@ -174,18 +174,9 @@ def evaluate_rfdetr(
 
     print(f"[*] Evaluation returned: {results}")
 
-    # Fallback to metrics.csv if evaluate returned empty dict
-    metrics_csv = "/vol/checkpoints/rfdetr/metrics.csv"
-    if not results and os.path.exists(metrics_csv):
-        try:
-            df = pd.read_csv(metrics_csv)
-            val_rows = df[df["val/mAP_50_95"].notna()]
-            if not val_rows.empty:
-                best_row = val_rows.sort_values(by="val/mAP_50_95", ascending=False).iloc[0]
-                results = best_row.to_dict()
-                print(f"[+] Loaded best validation metrics from metrics.csv: {results.get('val/mAP_50_95')}")
-        except Exception as e:
-            print(f"[!] Warning reading metrics.csv: {e}")
+    # Nếu model.evaluate thất bại, thông báo lỗi chứ không lấy nhầm dữ liệu validation
+    if not results:
+        print("[!] model.evaluate không trả về kết quả, tiến hành tính toán trực tiếp từ Confusion Matrix và COCOeval...")
 
     # 4. Thực hiện suy luận toàn diện trên tập Test: sinh Confusion Matrix & tính toán COCOeval thực tế
     cm_paths = {}
@@ -205,49 +196,44 @@ def evaluate_rfdetr(
             cm_paths = {
                 "confusion_matrix.png": cm_res.get("confusion_matrix", os.path.join(output_dir, "confusion_matrix.png")),
                 "confusion_matrix_normalized.png": cm_res.get("confusion_matrix_normalized", os.path.join(output_dir, "confusion_matrix_normalized.png")),
+                "confusion_matrix.csv": cm_res.get("confusion_matrix_csv", os.path.join(output_dir, "confusion_matrix.csv")),
+                "confusion_matrix_normalized.csv": cm_res.get("confusion_matrix_normalized_csv", os.path.join(output_dir, "confusion_matrix_normalized.csv")),
+                "per_class_metrics.csv": cm_res.get("per_class_csv", os.path.join(output_dir, "per_class_metrics.csv")),
             }
     except Exception as e:
         print(f"[!] Warning generating RF-DETR confusion matrix & COCOeval: {e}")
         import traceback
         traceback.print_exc()
 
-    # Trích xuất per-class metrics thực tế từ kết quả COCOeval
-    per_class_metrics = cm_res.get("per_class", [])
-    coco_overall = cm_res.get("overall", {})
+    # Trích xuất kết quả per_class_metrics và coco_overall từ cm_res
+    per_class_metrics = cm_res.get("per_class", []) if isinstance(cm_res, dict) else []
+    coco_overall = cm_res.get("overall", {}) if isinstance(cm_res, dict) else {}
 
-    # Nếu per_class_metrics rỗng (do lỗi ngoại lệ), tạo fallback an toàn từ instances ground-truth
+    # Kiểm tra tính toàn vẹn của kết quả COCOeval & Confusion Matrix
     if not per_class_metrics:
-        print("[!] per_class_metrics rỗng từ cm_res, đang tạo dữ liệu an toàn...")
-        for cls_id, name in enumerate(class_names):
-            per_class_metrics.append({
-                "Class ID": cls_id,
-                "Class Name": name,
-                "Instances": 0,
-                "Precision": float(coco_overall.get("precision", 0.0)),
-                "Recall": float(coco_overall.get("recall", 0.0)),
-                "mAP@50": float(coco_overall.get("map50", 0.0)),
-                "mAP@50-95": float(coco_overall.get("map50_95", 0.0)),
-            })
+        raise RuntimeError(
+            "[LỖI ĐÁNH GIÁ] Không trích xuất được per_class_metrics từ kết quả COCOeval! "
+            "Bắt buộc phải tính toán thành công trên tập Test, không dùng dữ liệu dự phòng."
+        )
 
-    # Xác định overall metrics
-    map50_95 = float(coco_overall.get("map50_95", 0.0))
-    map50 = float(coco_overall.get("map50", 0.0))
-    precision = float(coco_overall.get("precision", 0.0))
-    recall = float(coco_overall.get("recall", 0.0))
-
-    # Nếu COCOeval cho 0 (ví dụ do lỗi), thử fallback lấy từ model.evaluate
-    if map50_95 == 0.0 and results:
-        precision = float(results.get("test/precision", results.get("val/precision", precision)))
-        recall = float(results.get("test/recall", results.get("val/recall", recall)))
-        map50 = float(results.get("test/mAP_50", results.get("val/mAP_50", map50)))
-        map50_95 = float(results.get("test/mAP_50_95", results.get("val/mAP_50_95", map50_95)))
-
-    overall_metrics = {
-        "precision": precision,
-        "recall": recall,
-        "map50": map50,
-        "map50_95": map50_95,
-    }
+    # Xác định overall metrics: Ưu tiên lấy trực tiếp từ kết quả chính thống của model.evaluate()
+    if results and "test/mAP_50_95" in results:
+        overall_metrics = {
+            "precision": float(results.get("test/precision", 0.0)),
+            "recall": float(results.get("test/recall", 0.0)),
+            "map50": float(results.get("test/mAP_50", 0.0)),
+            "map50_95": float(results.get("test/mAP_50_95", 0.0)),
+        }
+        print(f"[+] Sử dụng kết quả chính thống từ model.evaluate(): {overall_metrics}")
+    elif coco_overall and "map50_95" in coco_overall:
+        overall_metrics = {
+            "precision": float(coco_overall.get("precision", 0.0)),
+            "recall": float(coco_overall.get("recall", 0.0)),
+            "map50": float(coco_overall.get("map50", 0.0)),
+            "map50_95": float(coco_overall.get("map50_95", 0.0)),
+        }
+    else:
+        raise RuntimeError("[LỖI] Không tìm thấy kết quả đánh giá hợp lệ từ model.evaluate() hay COCOeval!")
 
     # 5. Đo đạc Benchmark Phần cứng (GFLOPs, Latency ms, FPS)
     hw_bench = measure_hardware_benchmark(

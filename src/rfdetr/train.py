@@ -222,10 +222,11 @@ def train_rfdetr(
     train_cfg = cfg.get("training", {})
 
     model_variant = model_cfg.get("variant", "RFDETRMedium")
-    epochs = train_cfg.get("epochs", 50)
+    epochs = train_cfg.get("epochs", 80)
     patience = train_cfg.get("patience", 10)  # Cấu hình chuẩn patience = 10
-    batch_size = train_cfg.get("batch_size", 8)
-    grad_accum_steps = train_cfg.get("grad_accum_steps", 2)
+    imgsz = train_cfg.get("imgsz", 640)
+    batch_size = train_cfg.get("batch_size", 16)
+    grad_accum_steps = train_cfg.get("grad_accum_steps", 1)
     lr = float(train_cfg.get("lr", 0.0001))
 
     # 3. Kiểm tra checkpoint dở dang để resume nếu trước đó bị hết giờ (Timeout)
@@ -314,11 +315,17 @@ def train_rfdetr(
     from rfdetr import RFDETRMedium, RFDETRBase
     
     if "Medium" in model_variant:
-        model = RFDETRMedium()
+        try:
+            model = RFDETRMedium(resolution=imgsz)
+        except Exception:
+            model = RFDETRMedium()
     else:
-        model = RFDETRBase()
+        try:
+            model = RFDETRBase(resolution=imgsz)
+        except Exception:
+            model = RFDETRBase()
 
-    print(f"[*] Bắt đầu huấn luyện RF-DETR trên {dataset_dir} (epochs={epochs}, patience={patience}, resume={bool(resume_path)})...")
+    print(f"[*] Bắt đầu huấn luyện RF-DETR trên {dataset_dir} (epochs={epochs}, patience={patience}, batch_size={batch_size}, imgsz={imgsz}, resume={bool(resume_path)})...")
     
     train_kwargs = {
         "dataset_dir": dataset_dir,

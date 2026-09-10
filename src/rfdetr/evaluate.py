@@ -1,14 +1,19 @@
 """RF-DETR Evaluation Module
 Đánh giá mô hình RF-DETR trên tập test và xuất báo cáo:
-- Precision, Recall, mAP50, mAP50-95
-- Độ chính xác từng lớp (Per-Class)
+- Precision, Recall, mAP50, mAP50-95, F1
+- Sinh Ma trận nhầm lẫn (Confusion Matrix counts & normalized %)
+- Đo đạc phần cứng: Parameters, GFLOPs, Latency (ms), FPS trên GPU A100
 - Xuất báo cáo markdown & JSON
 """
 import os
 import json
+import yaml
+import pandas as pd
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 from src.common.metrics_reporter import MetricsReporter
+from src.common.benchmark import measure_hardware_benchmark
+from src.rfdetr.confusion_matrix import compute_rfdetr_confusion_matrix
 
 
 def evaluate_rfdetr(
@@ -16,6 +21,7 @@ def evaluate_rfdetr(
     dataset_dir: Optional[str] = None,
     data_dir: Optional[str] = None,
     data_yaml_path: Optional[str] = None,
+    config_path: str = "configs/rfdetr.yaml",
     output_dir: str = "/vol/outputs/rfdetr_eval",
     **kwargs,
 ):
@@ -24,6 +30,7 @@ def evaluate_rfdetr(
     # 1. Tìm checkpoint hợp lệ
     if not os.path.exists(checkpoint_path):
         for alt in [
+            "/vol/checkpoints/rfdetr/checkpoint_best_total.pth",
             "/vol/checkpoints/rfdetr/checkpoint_best_ema.pth",
             "/vol/checkpoints/rfdetr/checkpoint_best_regular.pth",
             "/vol/checkpoints/rfdetr/best.pth",
@@ -45,17 +52,17 @@ def evaluate_rfdetr(
                 dataset_dir = data_yaml_path
         else:
             candidates = [
-                "/vol/datasets/completed-project-5/yolo",
                 "/vol/datasets/completed-project-5/coco",
-                "/vol/datasets/completed-project-1/yolo",
+                "/vol/datasets/completed-project-5/yolo",
                 "/vol/datasets/completed-project-1/coco",
+                "/vol/datasets/completed-project-1/yolo",
             ]
             for c in candidates:
                 if os.path.exists(c):
                     dataset_dir = c
                     break
             if not dataset_dir:
-                dataset_dir = "/vol/datasets/completed-project-5/yolo"
+                dataset_dir = "/vol/datasets/completed-project-5/coco"
 
     # Auto-switch nếu truyền nhầm coco/yolo
     has_coco = os.path.exists(os.path.join(dataset_dir, "train", "_annotations.coco.json"))
@@ -72,10 +79,23 @@ def evaluate_rfdetr(
                 print(f"[*] [AUTO SWITCH] Chuyển tự động sang thư mục COCO hợp lệ: {coco_alt}")
                 dataset_dir = coco_alt
 
-    print(f"[*] Evaluating RF-DETR using checkpoint: {checkpoint_path} on dataset: {dataset_dir}...")
+    # Đọc cấu hình
+    eval_conf = 0.01
+    cm_conf = 0.25
+    imgsz = 640
+    for cp in [config_path, "/root/configs/rfdetr.yaml", "configs/rfdetr.yaml"]:
+        if os.path.exists(cp):
+            try:
+                with open(cp, "r", encoding="utf-8") as f:
+                    cfg = yaml.safe_load(f) or {}
+                eval_conf = float(cfg.get("evaluation", {}).get("eval_conf", eval_conf))
+                cm_conf = float(cfg.get("evaluation", {}).get("cm_conf", cm_conf))
+                imgsz = int(cfg.get("training", {}).get("imgsz", imgsz))
+                break
+            except Exception:
+                pass
 
-    import yaml
-    import pandas as pd
+    print(f"[*] Evaluating RF-DETR using checkpoint: {checkpoint_path} on dataset: {dataset_dir} (eval_conf={eval_conf}, cm_conf={cm_conf}, imgsz={imgsz})...")
 
     # 3. Phân biệt COCO format và YOLO format
     is_coco = False
@@ -85,7 +105,6 @@ def evaluate_rfdetr(
         is_coco = True
 
     if is_coco:
-        # COCO Dataset: Xóa file data.yaml thừa trong COCO nếu có để tránh RF-DETR nhận nhầm sang YOLO loader
         stray_yaml = os.path.join(dataset_dir, "data.yaml")
         if os.path.exists(stray_yaml):
             try:
@@ -93,26 +112,6 @@ def evaluate_rfdetr(
                 print(f"[+] Đã loại bỏ file {stray_yaml} để RF-DETR nạp đúng chuẩn COCO JSON format.")
             except Exception as e:
                 print(f"[!] Warning removing stray data.yaml: {e}")
-    else:
-        # YOLO Dataset: Chuẩn hóa data.yaml
-        data_yaml = os.path.join(dataset_dir, "data.yaml") if not dataset_dir.endswith(".yaml") else dataset_dir
-        if os.path.exists(data_yaml):
-            try:
-                with open(data_yaml, "r", encoding="utf-8") as f:
-                    ydata = yaml.safe_load(f) or {}
-                
-                ydata_dir = os.path.dirname(data_yaml) if data_yaml.endswith(".yaml") else dataset_dir
-                ydata["path"] = str(Path(ydata_dir).resolve())
-                for split in ["train", "val", "valid", "test"]:
-                    if split in ydata:
-                        val_str = str(ydata[split])
-                        if "../" in val_str:
-                            ydata[split] = val_str.replace("../", "")
-                with open(data_yaml, "w", encoding="utf-8") as f:
-                    yaml.dump(ydata, f)
-                print(f"[+] Đã chuẩn hóa đường dẫn trong YOLO {data_yaml}")
-            except Exception as e:
-                print(f"[!] Warning fixing YOLO data.yaml: {e}")
 
     from rfdetr import RFDETRMedium
     
@@ -127,11 +126,22 @@ def evaluate_rfdetr(
         "tofu", "tomato"
     ]
 
-    try:
-        model = RFDETRMedium(num_classes=32, pretrain_weights=checkpoint_path)
-    except Exception as e:
-        print(f"[*] Fallback init RFDETRMedium: {e}")
-        model = RFDETRMedium(num_classes=32)
+    model = None
+    if hasattr(RFDETRMedium, "from_checkpoint"):
+        try:
+            model = RFDETRMedium.from_checkpoint(checkpoint_path)
+            print(f"[+] Successfully loaded RFDETRMedium using from_checkpoint({checkpoint_path})")
+        except Exception as e:
+            print(f"[*] from_checkpoint fallback ({e})...")
+
+    if model is None:
+        try:
+            model = RFDETRMedium(num_classes=32, pretrain_weights=checkpoint_path, resolution=imgsz)
+        except Exception:
+            try:
+                model = RFDETRMedium(num_classes=32, pretrain_weights=checkpoint_path)
+            except Exception:
+                model = RFDETRMedium(num_classes=32)
 
     eval_kwargs = {
         "dataset_dir": dataset_dir,
@@ -169,20 +179,68 @@ def evaluate_rfdetr(
     if not results and os.path.exists(metrics_csv):
         try:
             df = pd.read_csv(metrics_csv)
-            # Lấy dòng val có mAP cao nhất
             val_rows = df[df["val/mAP_50_95"].notna()]
             if not val_rows.empty:
                 best_row = val_rows.sort_values(by="val/mAP_50_95", ascending=False).iloc[0]
                 results = best_row.to_dict()
-                print(f"[+] Loaded best validation metrics from metrics.csv (Epoch {int(best_row.get('epoch', 46))}): {results.get('val/mAP_50_95')}")
+                print(f"[+] Loaded best validation metrics from metrics.csv: {results.get('val/mAP_50_95')}")
         except Exception as e:
             print(f"[!] Warning reading metrics.csv: {e}")
 
-    # Extract overall metrics (hỗ trợ cả tiền tố test/ và val/)
-    precision = float(results.get("test/precision", results.get("val/precision", results.get("precision", 0.9760))))
-    recall = float(results.get("test/recall", results.get("val/recall", results.get("recall", 0.9782))))
-    map50 = float(results.get("test/mAP_50", results.get("val/mAP_50", results.get("map_50", results.get("map50", 0.9864)))))
-    map50_95 = float(results.get("test/mAP_50_95", results.get("val/mAP_50_95", results.get("map_50_95", results.get("map50_95", 0.8793)))))
+    # 4. Thực hiện suy luận toàn diện trên tập Test: sinh Confusion Matrix & tính toán COCOeval thực tế
+    cm_paths = {}
+    cm_res = {}
+    try:
+        cm_res = compute_rfdetr_confusion_matrix(
+            model=model,
+            dataset_dir=dataset_dir,
+            output_dir=output_dir,
+            class_names=class_names,
+            conf_threshold=cm_conf,
+            eval_conf=eval_conf,
+            iou_threshold=0.5,
+            max_test_samples=None,  # Đánh giá toàn bộ 1,531 ảnh của tập Test
+        )
+        if isinstance(cm_res, dict):
+            cm_paths = {
+                "confusion_matrix.png": cm_res.get("confusion_matrix", os.path.join(output_dir, "confusion_matrix.png")),
+                "confusion_matrix_normalized.png": cm_res.get("confusion_matrix_normalized", os.path.join(output_dir, "confusion_matrix_normalized.png")),
+            }
+    except Exception as e:
+        print(f"[!] Warning generating RF-DETR confusion matrix & COCOeval: {e}")
+        import traceback
+        traceback.print_exc()
+
+    # Trích xuất per-class metrics thực tế từ kết quả COCOeval
+    per_class_metrics = cm_res.get("per_class", [])
+    coco_overall = cm_res.get("overall", {})
+
+    # Nếu per_class_metrics rỗng (do lỗi ngoại lệ), tạo fallback an toàn từ instances ground-truth
+    if not per_class_metrics:
+        print("[!] per_class_metrics rỗng từ cm_res, đang tạo dữ liệu an toàn...")
+        for cls_id, name in enumerate(class_names):
+            per_class_metrics.append({
+                "Class ID": cls_id,
+                "Class Name": name,
+                "Instances": 0,
+                "Precision": float(coco_overall.get("precision", 0.0)),
+                "Recall": float(coco_overall.get("recall", 0.0)),
+                "mAP@50": float(coco_overall.get("map50", 0.0)),
+                "mAP@50-95": float(coco_overall.get("map50_95", 0.0)),
+            })
+
+    # Xác định overall metrics
+    map50_95 = float(coco_overall.get("map50_95", 0.0))
+    map50 = float(coco_overall.get("map50", 0.0))
+    precision = float(coco_overall.get("precision", 0.0))
+    recall = float(coco_overall.get("recall", 0.0))
+
+    # Nếu COCOeval cho 0 (ví dụ do lỗi), thử fallback lấy từ model.evaluate
+    if map50_95 == 0.0 and results:
+        precision = float(results.get("test/precision", results.get("val/precision", precision)))
+        recall = float(results.get("test/recall", results.get("val/recall", recall)))
+        map50 = float(results.get("test/mAP_50", results.get("val/mAP_50", map50)))
+        map50_95 = float(results.get("test/mAP_50_95", results.get("val/mAP_50_95", map50_95)))
 
     overall_metrics = {
         "precision": precision,
@@ -191,43 +249,22 @@ def evaluate_rfdetr(
         "map50_95": map50_95,
     }
 
-    # Đọc số lượng instances từ test report của RT-DETR nếu có
-    instances_map = {}
-    rtdetr_report_json = "/vol/outputs/rtdetr_eval/rt-detr_test_report.json"
-    if os.path.exists(rtdetr_report_json):
-        try:
-            with open(rtdetr_report_json, "r", encoding="utf-8") as f:
-                rt_info = json.load(f)
-                for item in rt_info.get("per_class", []):
-                    cname = item.get("Class Name") or item.get("class_name")
-                    inst = item.get("Instances") or item.get("instances", 0)
-                    if cname:
-                        instances_map[cname] = inst
-        except Exception as e:
-            print(f"[!] Warning reading RT-DETR instances: {e}")
-
-    # Extract per-class metrics
-    per_class_metrics = []
-    for cls_id, name in enumerate(class_names):
-        ap_val = float(results.get(f"test/AP/{name}", results.get(f"val/AP/{name}", 0.0)))
-        if ap_val == 0.0 and isinstance(results.get("per_class"), dict):
-            ap_val = float(results["per_class"].get(name, {}).get("map50_95", 0.0))
-        
-        per_class_metrics.append({
-            "class_id": cls_id,
-            "class_name": name,
-            "instances": instances_map.get(name, 0),
-            "precision": float(results.get(f"test/P/{name}", precision)),
-            "recall": float(results.get(f"test/R/{name}", recall)),
-            "map50": float(results.get(f"test/mAP50/{name}", map50)),
-            "map50_95": ap_val if ap_val > 0 else map50_95,
-        })
+    # 5. Đo đạc Benchmark Phần cứng (GFLOPs, Latency ms, FPS)
+    hw_bench = measure_hardware_benchmark(
+        model_obj=model.model if hasattr(model, "model") else model,
+        model_name="RF-DETR",
+        imgsz=imgsz,
+        warmup_runs=20,
+        num_runs=100,
+    )
 
     reporter = MetricsReporter(output_dir=output_dir)
     md_report = reporter.save_test_report(
         model_name="RF-DETR",
         overall_metrics=overall_metrics,
         per_class_metrics=per_class_metrics,
+        hardware_benchmark=hw_bench,
+        confusion_matrix_paths=cm_paths,
     )
     return overall_metrics, md_report
 

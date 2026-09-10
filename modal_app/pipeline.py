@@ -42,6 +42,7 @@ image = (
         "einops>=0.7.0",
         "supervision>=0.19.0",
         "tensorboard",
+        "torchinfo",
         "rfdetr[train,loggers]",
     )
     .env({
@@ -274,7 +275,7 @@ def evaluate_both_models():
     image=image,
     gpu="A100",
     volumes={"/vol": volume},
-    timeout=600,
+    timeout=1800,
 )
 def evaluate_rtdetr_step():
     from src.rtdetr.evaluate import evaluate_rtdetr
@@ -292,7 +293,7 @@ def evaluate_rtdetr_step():
     image=image,
     gpu="A100",
     volumes={"/vol": volume},
-    timeout=600,
+    timeout=1800,
 )
 def evaluate_rfdetr_step():
     from src.rfdetr.evaluate import evaluate_rfdetr
@@ -320,6 +321,14 @@ def eval_rfdetr():
     metrics, report = evaluate_rfdetr_step.remote()
     print("[+] Hoàn tất đánh giá RF-DETR trên Test Split!")
     print(metrics)
+
+
+@app.local_entrypoint()
+def eval_both():
+    """Chạy đánh giá cả 2 mô hình (RT-DETR & RF-DETR) trên tập test."""
+    res = evaluate_both_models.remote()
+    print("[+] Hoàn tất đánh giá cả 2 mô hình trên Test split!")
+    print(res)
 
 
 @app.function(

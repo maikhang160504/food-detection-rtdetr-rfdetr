@@ -1,14 +1,64 @@
 """RT-DETR Evaluation Module
 Đánh giá mô hình RT-DETR trên tập test:
-- Tính Precision, Recall, mAP50, mAP50-95
-- Độ chính xác từng lớp (Per-Class)
+- Tính Precision, Recall, mAP50, mAP50-95, F1
+- Trích xuất Ma trận nhầm lẫn (Confusion Matrix)
+- Đo đạc phần cứng: Parameters, GFLOPs, Latency (ms), FPS trên GPU A100
 - Xuất báo cáo markdown & JSON
 """
 import os
+import shutil
+import yaml
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 from ultralytics import RTDETR
 from src.common.metrics_reporter import MetricsReporter
+from src.common.benchmark import measure_hardware_benchmark
+
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+
+
+def plot_annotated_confusion_matrix(
+    matrix: np.ndarray,
+    names: List[str],
+    save_path: str,
+    normalized: bool = True,
+    title: str = "",
+):
+    """Vẽ ma trận nhầm lẫn với số hiển thị rõ ràng trên từng ô (annot=True)."""
+    plt.figure(figsize=(24, 20))
+    if normalized:
+        norm_mat = matrix.astype(np.float32)
+        row_sums = norm_mat.sum(axis=1, keepdims=True)
+        row_sums[row_sums == 0] = 1.0
+        mat = np.round(norm_mat / row_sums, 2)
+        fmt = ".2f"
+    else:
+        mat = matrix.astype(int)
+        fmt = "d"
+
+    sns.heatmap(
+        mat,
+        annot=True,
+        fmt=fmt,
+        cmap="Blues",
+        xticklabels=names,
+        yticklabels=names,
+        cbar=True,
+        annot_kws={"size": 6.5},
+    )
+    plt.title(title, fontsize=16, pad=15)
+    plt.xlabel("Predicted Label", fontsize=14)
+    plt.ylabel("True Label", fontsize=14)
+    plt.xticks(rotation=45, ha="right", fontsize=9)
+    plt.yticks(rotation=0, fontsize=9)
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=200)
+    plt.close()
 
 
 def evaluate_rtdetr(
@@ -16,6 +66,7 @@ def evaluate_rtdetr(
     data_yaml_path: Optional[str] = None,
     dataset_dir: Optional[str] = None,
     data_dir: Optional[str] = None,
+    config_path: str = "configs/rtdetr.yaml",
     output_dir: str = "/vol/outputs/rtdetr_eval",
     **kwargs,
 ):
@@ -24,6 +75,7 @@ def evaluate_rtdetr(
     # 1. Tìm checkpoint hợp lệ
     if not os.path.exists(checkpoint_path):
         for alt in [
+            "/vol/checkpoints/rtdetr/run_80epochs/weights/best.pt",
             "/vol/checkpoints/rtdetr/run_50epochs/weights/best.pt",
             "/vol/checkpoints/rtdetr/best.pt",
             "/vol/checkpoints/rtdetr/last.pt",
@@ -56,11 +108,51 @@ def evaluate_rtdetr(
     if os.path.isdir(data_yaml_path):
         data_yaml_path = os.path.join(data_yaml_path, "data.yaml")
 
-    print(f"[*] Evaluating RT-DETR using checkpoint: {checkpoint_path} on: {data_yaml_path}...")
+    # Đọc cấu hình đánh giá nếu có
+    eval_conf = 0.001
+    cm_conf = 0.25
+    imgsz = 640
+    for cp in [config_path, "/root/configs/rtdetr.yaml", "configs/rtdetr.yaml"]:
+        if os.path.exists(cp):
+            try:
+                with open(cp, "r", encoding="utf-8") as f:
+                    cfg = yaml.safe_load(f) or {}
+                eval_conf = float(cfg.get("evaluation", {}).get("eval_conf", eval_conf))
+                cm_conf = float(cfg.get("evaluation", {}).get("cm_conf", cm_conf))
+                imgsz = int(cfg.get("training", {}).get("imgsz", imgsz))
+                break
+            except Exception:
+                pass
+
+    print(f"[*] Evaluating RT-DETR using checkpoint: {checkpoint_path} on: {data_yaml_path} (eval_conf={eval_conf}, cm_conf={cm_conf}, imgsz={imgsz})...")
     model = RTDETR(checkpoint_path)
 
-    # Run validation on test split
-    metrics = model.val(data=data_yaml_path, split="test", project=output_dir, name="test_results", exist_ok=True)
+    # 1. Run validation on test split với conf=0.001 (hoặc eval_conf) chuẩn COCO để lấy mAP đầy đủ
+    test_run_dir = os.path.join(output_dir, "test_results")
+    metrics = model.val(
+        data=data_yaml_path,
+        split="test",
+        conf=eval_conf,
+        imgsz=imgsz,
+        project=output_dir,
+        name="test_results",
+        exist_ok=True,
+        plots=False,
+    )
+
+    # 2. Run validation tại ngưỡng conf=0.25 với plots=True để Ultralytics kích hoạt tính toán Confusion Matrix
+    cm_run_dir = os.path.join(output_dir, "cm_results")
+    cm_metrics = model.val(
+        data=data_yaml_path,
+        split="test",
+        conf=cm_conf,
+        imgsz=imgsz,
+        project=output_dir,
+        name="cm_results",
+        exist_ok=True,
+        plots=True,
+    )
+    raw_cm = cm_metrics.confusion_matrix.matrix  # shape (33, 33)
 
     # Extract overall metrics
     overall_metrics = {
@@ -71,35 +163,113 @@ def evaluate_rtdetr(
     }
 
     # Extract per-class metrics an toàn
-    per_class_metrics = []
     class_names = metrics.names if hasattr(metrics, "names") else {}
-
     p_list = metrics.box.p.tolist() if hasattr(metrics.box.p, "tolist") else list(metrics.box.p)
     r_list = metrics.box.r.tolist() if hasattr(metrics.box.r, "tolist") else list(metrics.box.r)
     ap50_list = metrics.box.ap50.tolist() if hasattr(metrics.box.ap50, "tolist") else list(metrics.box.ap50)
     ap_list = metrics.box.ap.tolist() if hasattr(metrics.box.ap, "tolist") else list(metrics.box.ap)
 
+    # Lấy ground truth instances per class
+    num_classes = len(class_names)
+    nt_list = [0] * num_classes
+
+    # Cách 1: Lấy từ confusion matrix row sum
+    if raw_cm is not None and raw_cm.shape[0] >= num_classes:
+        row_sums = raw_cm[:num_classes, :].sum(axis=1)
+        if row_sums.sum() > 0:
+            nt_list = [int(x) for x in row_sums]
+
+    # Cách 2: Lấy từ COCO annotations nếu có
+    if not any(nt_list):
+        coco_candidates = [
+            "/vol/datasets/completed-project-5/coco/test/_annotations.coco.json",
+            os.path.join(os.path.dirname(data_yaml_path), "..", "coco", "test", "_annotations.coco.json"),
+        ]
+        for cpath in coco_candidates:
+            if os.path.exists(cpath):
+                try:
+                    with open(cpath, "r", encoding="utf-8") as f:
+                        cdata = json.load(f)
+                    cat_map = {c["name"].lower(): c["id"] for c in cdata.get("categories", [])}
+                    ann_counts = {}
+                    for a in cdata.get("annotations", []):
+                        cid = a["category_id"]
+                        ann_counts[cid] = ann_counts.get(cid, 0) + 1
+                    for idx, cname in enumerate(class_names.values() if isinstance(class_names, dict) else class_names):
+                        cid = cat_map.get(str(cname).lower())
+                        if cid in ann_counts:
+                            nt_list[idx] = ann_counts[cid]
+                    break
+                except Exception:
+                    pass
+
+    per_class_metrics = []
+    cnames_list = []
     for i, cname in (class_names.items() if isinstance(class_names, dict) else enumerate(class_names)):
         idx = int(i)
+        cname_str = str(cname)
+        cnames_list.append(cname_str)
         p_val = float(p_list[idx]) if idx < len(p_list) else 0.0
         r_val = float(r_list[idx]) if idx < len(r_list) else 0.0
         ap50_val = float(ap50_list[idx]) if idx < len(ap50_list) else 0.0
         ap_val = float(ap_list[idx]) if idx < len(ap_list) else 0.0
+        inst_val = int(nt_list[idx]) if idx < len(nt_list) else 0
 
         per_class_metrics.append({
             "Class ID": idx,
-            "Class Name": str(cname),
+            "Class Name": cname_str,
+            "Instances": inst_val,
             "Precision": round(0.0 if str(p_val) == "nan" else p_val, 4),
             "Recall": round(0.0 if str(r_val) == "nan" else r_val, 4),
             "mAP@50": round(0.0 if str(ap50_val) == "nan" else ap50_val, 4),
             "mAP@50-95": round(0.0 if str(ap_val) == "nan" else ap_val, 4),
         })
 
+    # 3. Vẽ Confusion Matrix có SỐ hiển thị rõ ràng trên từng ô (annot=True)
+    display_names = cnames_list + ["background"]
+    cm_counts_path = os.path.join(output_dir, "confusion_matrix.png")
+    cm_counts_prefixed = os.path.join(output_dir, "rtdetr_confusion_matrix.png")
+    plot_annotated_confusion_matrix(
+        matrix=raw_cm,
+        names=display_names,
+        save_path=cm_counts_path,
+        normalized=False,
+        title=f"RT-DETR Confusion Matrix (Counts @ conf={cm_conf})",
+    )
+    shutil.copy(cm_counts_path, cm_counts_prefixed)
+
+    cm_norm_path = os.path.join(output_dir, "confusion_matrix_normalized.png")
+    cm_norm_prefixed = os.path.join(output_dir, "rtdetr_confusion_matrix_normalized.png")
+    plot_annotated_confusion_matrix(
+        matrix=raw_cm,
+        names=display_names,
+        save_path=cm_norm_path,
+        normalized=True,
+        title=f"RT-DETR Normalized Confusion Matrix (@ conf={cm_conf})",
+    )
+    shutil.copy(cm_norm_path, cm_norm_prefixed)
+
+    cm_paths = {
+        "confusion_matrix.png": cm_counts_path,
+        "confusion_matrix_normalized.png": cm_norm_path,
+    }
+
+    # 4. Đo đạc Benchmark Phần cứng (GFLOPs, Latency ms, FPS)
+    hw_bench = measure_hardware_benchmark(
+        model_obj=model.model if hasattr(model, "model") else model,
+        model_name="RT-DETR",
+        imgsz=imgsz,
+        warmup_runs=20,
+        num_runs=100,
+    )
+
     reporter = MetricsReporter(output_dir=output_dir)
     md_report = reporter.save_test_report(
         model_name="RT-DETR",
         overall_metrics=overall_metrics,
         per_class_metrics=per_class_metrics,
+        hardware_benchmark=hw_bench,
+        confusion_matrix_paths=cm_paths,
     )
     return overall_metrics, md_report
 

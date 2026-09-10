@@ -63,20 +63,27 @@ def train_rtdetr(
     train_cfg = cfg.get("training", {})
 
     model_variant = model_cfg.get("variant", "rtdetr-l.pt")
-    epochs = train_cfg.get("epochs", 50)
+    epochs = train_cfg.get("epochs", 80)
     imgsz = train_cfg.get("imgsz", 640)
     batch_size = train_cfg.get("batch_size", 16)
     lr0 = train_cfg.get("lr0", 0.0001)
     device = train_cfg.get("device", 0)
 
+    run_name = f"run_{epochs}epochs"
+
     # 2. Kiểm tra checkpoint dở dang để tự động resume nếu trước đó bị hết giờ (Timeout)
     last_checkpoint = Path(output_dir) / "last.pt"
-    run_last_checkpoint = Path(output_dir) / "run_50epochs" / "weights" / "last.pt"
+    run_last_checkpoint = Path(output_dir) / run_name / "weights" / "last.pt"
+    legacy_run_last = Path(output_dir) / "run_50epochs" / "weights" / "last.pt"
     
     resume_flag = False
     if run_last_checkpoint.exists():
         print(f"[*] [RESUME SAFE] Tìm thấy checkpoint dở dang tại: {run_last_checkpoint}. Tiếp tục train...")
         model = RTDETR(str(run_last_checkpoint))
+        resume_flag = True
+    elif legacy_run_last.exists():
+        print(f"[*] [RESUME SAFE] Tìm thấy checkpoint dở dang tại: {legacy_run_last}. Tiếp tục train...")
+        model = RTDETR(str(legacy_run_last))
         resume_flag = True
     elif last_checkpoint.exists():
         print(f"[*] [RESUME SAFE] Tìm thấy checkpoint dở dang tại: {last_checkpoint}. Tiếp tục train...")
@@ -95,15 +102,17 @@ def train_rtdetr(
 
     def sync_checkpoints():
         """Đồng bộ checkpoint ngay lập tức từ weights/ sang thư mục gốc của checkpoints."""
-        run_best = Path(output_dir) / "run_50epochs" / "weights" / "best.pt"
-        run_last = Path(output_dir) / "run_50epochs" / "weights" / "last.pt"
-        dest_best = Path(output_dir) / "best.pt"
-        dest_last = Path(output_dir) / "last.pt"
+        for rname in [run_name, "run_50epochs"]:
+            run_best = Path(output_dir) / rname / "weights" / "best.pt"
+            run_last = Path(output_dir) / rname / "weights" / "last.pt"
+            dest_best = Path(output_dir) / "best.pt"
+            dest_last = Path(output_dir) / "last.pt"
 
-        if run_best.exists():
-            shutil.copy(run_best, dest_best)
-        if run_last.exists():
-            shutil.copy(run_last, dest_last)
+            if run_best.exists():
+                shutil.copy(run_best, dest_best)
+            if run_last.exists():
+                shutil.copy(run_last, dest_last)
+                break
 
         if commit_fn is not None:
             try:
@@ -168,8 +177,11 @@ def train_rtdetr(
                 pass
 
         lr = trainer.optimizer.param_groups[0]["lr"] if trainer.optimizer else lr0
-        val_map50 = getattr(trainer, "metrics", {}).get("metrics/mAP50(B)", None) if hasattr(trainer, "metrics") else None
-        val_map50_95 = getattr(trainer, "metrics", {}).get("metrics/mAP50-95(B)", None) if hasattr(trainer, "metrics") else None
+        val_metrics = getattr(trainer, "metrics", {}) or {}
+        val_p = val_metrics.get("metrics/precision(B)", None)
+        val_r = val_metrics.get("metrics/recall(B)", None)
+        val_map50 = val_metrics.get("metrics/mAP50(B)", None)
+        val_map50_95 = val_metrics.get("metrics/mAP50-95(B)", None)
 
         # 1. Ghi log
         epoch_logger.log_epoch(
@@ -179,6 +191,8 @@ def train_rtdetr(
             box_loss=box_loss,
             giou_loss=giou_loss,
             learning_rate=lr,
+            val_precision=val_p,
+            val_recall=val_r,
             val_map50=val_map50,
             val_map50_95=val_map50_95,
             elapsed_seconds=elapsed,
@@ -203,7 +217,7 @@ def train_rtdetr(
             lr0=lr0,
             device=device,
             project=output_dir,
-            name="run_50epochs",
+            name=run_name,
             exist_ok=True,
             save=True,
             val=True,

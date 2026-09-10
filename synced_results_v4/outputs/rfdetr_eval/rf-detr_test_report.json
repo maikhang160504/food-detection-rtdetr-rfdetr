@@ -1,0 +1,313 @@
+{
+  "model": "RF-DETR",
+  "overall": {
+    "precision": 0.97517911975435,
+    "recall": 0.9744310917923804,
+    "map50": 0.967925211493087,
+    "map50_95": 0.8620058271272445
+  },
+  "per_class": [
+    {
+      "Class ID": 0,
+      "Class Name": "beef",
+      "Instances": 331,
+      "Precision": 0.9789,
+      "Recall": 0.9789,
+      "mAP@50": 0.9676,
+      "mAP@50-95": 0.8797
+    },
+    {
+      "Class ID": 1,
+      "Class Name": "bellpepper",
+      "Instances": 83,
+      "Precision": 0.9875,
+      "Recall": 0.9518,
+      "mAP@50": 0.9502,
+      "mAP@50-95": 0.9072
+    },
+    {
+      "Class ID": 2,
+      "Class Name": "bittergourd",
+      "Instances": 50,
+      "Precision": 1.0,
+      "Recall": 1.0,
+      "mAP@50": 1.0,
+      "mAP@50-95": 0.9709
+    },
+    {
+      "Class ID": 3,
+      "Class Name": "bottlegourd",
+      "Instances": 140,
+      "Precision": 0.9485,
+      "Recall": 0.9214,
+      "mAP@50": 0.914,
+      "mAP@50-95": 0.8223
+    },
+    {
+      "Class ID": 4,
+      "Class Name": "broccoli",
+      "Instances": 68,
+      "Precision": 0.9706,
+      "Recall": 0.9706,
+      "mAP@50": 0.9592,
+      "mAP@50-95": 0.9083
+    },
+    {
+      "Class ID": 5,
+      "Class Name": "cabbage",
+      "Instances": 79,
+      "Precision": 0.9506,
+      "Recall": 0.9747,
+      "mAP@50": 0.9683,
+      "mAP@50-95": 0.8863
+    },
+    {
+      "Class ID": 6,
+      "Class Name": "carrot",
+      "Instances": 74,
+      "Precision": 0.9865,
+      "Recall": 0.9865,
+      "mAP@50": 0.9802,
+      "mAP@50-95": 0.8523
+    },
+    {
+      "Class ID": 7,
+      "Class Name": "cauliflower",
+      "Instances": 109,
+      "Precision": 0.9727,
+      "Recall": 0.9817,
+      "mAP@50": 0.9732,
+      "mAP@50-95": 0.9055
+    },
+    {
+      "Class ID": 8,
+      "Class Name": "chayote",
+      "Instances": 57,
+      "Precision": 1.0,
+      "Recall": 1.0,
+      "mAP@50": 1.0,
+      "mAP@50-95": 0.9758
+    },
+    {
+      "Class ID": 9,
+      "Class Name": "chicken",
+      "Instances": 50,
+      "Precision": 0.94,
+      "Recall": 0.94,
+      "mAP@50": 0.922,
+      "mAP@50-95": 0.6394
+    },
+    {
+      "Class ID": 10,
+      "Class Name": "chickenegg",
+      "Instances": 223,
+      "Precision": 0.9821,
+      "Recall": 0.9865,
+      "mAP@50": 0.9787,
+      "mAP@50-95": 0.8861
+    },
+    {
+      "Class ID": 11,
+      "Class Name": "chickenleg",
+      "Instances": 531,
+      "Precision": 0.9943,
+      "Recall": 0.9868,
+      "mAP@50": 0.9802,
+      "mAP@50-95": 0.7969
+    },
+    {
+      "Class ID": 12,
+      "Class Name": "chickenwin",
+      "Instances": 151,
+      "Precision": 1.0,
+      "Recall": 0.9934,
+      "mAP@50": 0.9901,
+      "mAP@50-95": 0.8378
+    },
+    {
+      "Class ID": 13,
+      "Class Name": "corn",
+      "Instances": 134,
+      "Precision": 0.9542,
+      "Recall": 0.9328,
+      "mAP@50": 0.9127,
+      "mAP@50-95": 0.7775
+    },
+    {
+      "Class ID": 14,
+      "Class Name": "cucumber",
+      "Instances": 197,
+      "Precision": 0.9024,
+      "Recall": 0.9391,
+      "mAP@50": 0.9089,
+      "mAP@50-95": 0.8347
+    },
+    {
+      "Class ID": 15,
+      "Class Name": "duckegg",
+      "Instances": 99,
+      "Precision": 0.9796,
+      "Recall": 0.9697,
+      "mAP@50": 0.9604,
+      "mAP@50-95": 0.892
+    },
+    {
+      "Class ID": 16,
+      "Class Name": "eggplant",
+      "Instances": 45,
+      "Precision": 1.0,
+      "Recall": 1.0,
+      "mAP@50": 1.0,
+      "mAP@50-95": 0.932
+    },
+    {
+      "Class ID": 17,
+      "Class Name": "garlic",
+      "Instances": 179,
+      "Precision": 0.989,
+      "Recall": 1.0,
+      "mAP@50": 0.9999,
+      "mAP@50-95": 0.8624
+    },
+    {
+      "Class ID": 18,
+      "Class Name": "ginger",
+      "Instances": 64,
+      "Precision": 1.0,
+      "Recall": 0.9844,
+      "mAP@50": 0.9802,
+      "mAP@50-95": 0.9114
+    },
+    {
+      "Class ID": 19,
+      "Class Name": "jicama",
+      "Instances": 109,
+      "Precision": 0.972,
+      "Recall": 0.9541,
+      "mAP@50": 0.9497,
+      "mAP@50-95": 0.8502
+    },
+    {
+      "Class ID": 20,
+      "Class Name": "okra",
+      "Instances": 92,
+      "Precision": 0.9684,
+      "Recall": 1.0,
+      "mAP@50": 0.9945,
+      "mAP@50-95": 0.7326
+    },
+    {
+      "Class ID": 21,
+      "Class Name": "onion",
+      "Instances": 126,
+      "Precision": 0.9237,
+      "Recall": 0.9603,
+      "mAP@50": 0.9496,
+      "mAP@50-95": 0.8093
+    },
+    {
+      "Class ID": 22,
+      "Class Name": "pork",
+      "Instances": 79,
+      "Precision": 1.0,
+      "Recall": 1.0,
+      "mAP@50": 1.0,
+      "mAP@50-95": 0.8783
+    },
+    {
+      "Class ID": 23,
+      "Class Name": "potato",
+      "Instances": 56,
+      "Precision": 0.9643,
+      "Recall": 0.9643,
+      "mAP@50": 0.9604,
+      "mAP@50-95": 0.9049
+    },
+    {
+      "Class ID": 24,
+      "Class Name": "pumpkin",
+      "Instances": 104,
+      "Precision": 1.0,
+      "Recall": 0.9808,
+      "mAP@50": 0.9802,
+      "mAP@50-95": 0.9236
+    },
+    {
+      "Class ID": 25,
+      "Class Name": "radish",
+      "Instances": 159,
+      "Precision": 0.9871,
+      "Recall": 0.9623,
+      "mAP@50": 0.9603,
+      "mAP@50-95": 0.8395
+    },
+    {
+      "Class ID": 26,
+      "Class Name": "scallion",
+      "Instances": 55,
+      "Precision": 0.9636,
+      "Recall": 0.9636,
+      "mAP@50": 0.9584,
+      "mAP@50-95": 0.8048
+    },
+    {
+      "Class ID": 27,
+      "Class Name": "shrimp",
+      "Instances": 48,
+      "Precision": 1.0,
+      "Recall": 1.0,
+      "mAP@50": 1.0,
+      "mAP@50-95": 0.9098
+    },
+    {
+      "Class ID": 28,
+      "Class Name": "spongegourd",
+      "Instances": 143,
+      "Precision": 0.9929,
+      "Recall": 0.979,
+      "mAP@50": 0.9701,
+      "mAP@50-95": 0.8822
+    },
+    {
+      "Class ID": 29,
+      "Class Name": "sweetpotato",
+      "Instances": 100,
+      "Precision": 0.9216,
+      "Recall": 0.94,
+      "mAP@50": 0.9147,
+      "mAP@50-95": 0.808
+    },
+    {
+      "Class ID": 30,
+      "Class Name": "tofu",
+      "Instances": 44,
+      "Precision": 1.0,
+      "Recall": 1.0,
+      "mAP@50": 1.0,
+      "mAP@50-95": 0.908
+    },
+    {
+      "Class ID": 31,
+      "Class Name": "tomato",
+      "Instances": 132,
+      "Precision": 0.9924,
+      "Recall": 0.9924,
+      "mAP@50": 0.9899,
+      "mAP@50-95": 0.8544
+    }
+  ],
+  "hardware": {
+    "model_name": "RF-DETR",
+    "device": "NVIDIA A100-SXM4-40GB",
+    "imgsz": 640,
+    "batch_size": 1,
+    "params_m": 33.6,
+    "gflops": 2.87,
+    "latency_ms": 8.2,
+    "fps": 121.9
+  },
+  "confusion_matrix": {
+    "confusion_matrix.png": "/vol/outputs/rfdetr_eval/confusion_matrix.png",
+    "confusion_matrix_normalized.png": "/vol/outputs/rfdetr_eval/confusion_matrix_normalized.png"
+  }
+}

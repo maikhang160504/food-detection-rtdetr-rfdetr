@@ -54,6 +54,8 @@ class EpochLogger:
         box_loss: float,
         giou_loss: float,
         learning_rate: float,
+        val_precision: Optional[float] = None,
+        val_recall: Optional[float] = None,
         val_map50: Optional[float] = None,
         val_map50_95: Optional[float] = None,
         elapsed_seconds: Optional[float] = None,
@@ -71,6 +73,10 @@ class EpochLogger:
             "Epoch Time (s)": elapsed_seconds or 0.0,
         }
 
+        if val_precision is not None:
+            entry["Val Precision"] = round(float(val_precision), 4)
+        if val_recall is not None:
+            entry["Val Recall"] = round(float(val_recall), 4)
         if val_map50 is not None:
             entry["val_mAP50"] = round(float(val_map50), 4)
         if val_map50_95 is not None:
